@@ -1,6 +1,24 @@
-import { Audio as ExpoAudio } from 'expo-av';
 import { Platform } from 'react-native';
-import { Asset } from 'expo-asset';
+
+// Conditional imports to handle build-time issues
+let ExpoAudio;
+let Asset;
+
+try {
+  const expoAv = require('expo-av');
+  ExpoAudio = expoAv.Audio;
+} catch (error) {
+  console.warn('expo-av not available:', error.message);
+  ExpoAudio = null;
+}
+
+try {
+  const expoAsset = require('expo-asset');
+  Asset = expoAsset.Asset;
+} catch (error) {
+  console.warn('expo-asset not available:', error.message);
+  Asset = null;
+}
 
 class SoundManager {
   constructor() {
@@ -51,6 +69,10 @@ class SoundManager {
     const resolveWebUri = async (modOrPath) => {
       if (typeof modOrPath === 'string') return modOrPath;
       try {
+        if (!Asset) {
+          console.warn('Asset not available, using fallback');
+          return modOrPath?.default || '';
+        }
         const asset = Asset.fromModule(modOrPath);
         if (!asset.downloaded) {
           await asset.downloadAsync();
@@ -149,6 +171,12 @@ class SoundManager {
   }
 
   async initializeMobileAudio() {
+    // Check if ExpoAudio is available
+    if (!ExpoAudio) {
+      console.warn('ExpoAudio not available, skipping mobile audio initialization');
+      return;
+    }
+    
     // Set audio mode for mobile (using simplified config for compatibility)
     try {
       await ExpoAudio.setAudioModeAsync({
@@ -163,6 +191,12 @@ class SoundManager {
     }
 
     // Preload background music
+    if (!ExpoAudio) {
+      console.warn('ExpoAudio not available, skipping background music loading');
+      this.backgroundTracks = [];
+      return;
+    }
+    
     try {
       const bg1 = await ExpoAudio.Sound.createAsync(require('./assets/Sounds/BG/background.mp3'));
       const bg2 = await ExpoAudio.Sound.createAsync(require('./assets/Sounds/BG/background2.mp3'));
@@ -193,12 +227,18 @@ class SoundManager {
       try {
         this.mobileSfxPools[name] = [];
         for (let i = 0; i < this.poolBaseSize; i += 1) {
+          if (!ExpoAudio) {
+            console.warn('ExpoAudio not available, skipping SFX loading');
+            break;
+          }
           const { sound } = await ExpoAudio.Sound.createAsync(file);
           await sound.setVolumeAsync(this.sfxVolume);
           this.mobileSfxPools[name].push(sound);
         }
         // Keep representative reference for compatibility
-        this.sounds[name] = this.mobileSfxPools[name][0];
+        if (this.mobileSfxPools[name].length > 0) {
+          this.sounds[name] = this.mobileSfxPools[name][0];
+        }
         // console.log(`Loaded SFX pool: ${name} (${this.mobileSfxPools[name].length})`);
       } catch (sfxError) {
         // console.warn(`Failed to load SFX ${name}:`, sfxError);
@@ -446,6 +486,10 @@ class SoundManager {
           } catch {}
         }
         if (!chosen && pool.length < this.poolMax) {
+          if (!ExpoAudio) {
+            console.warn('ExpoAudio not available, cannot create new sound');
+            return;
+          }
           try {
             const file = this.mobileSfxSources[soundName];
             const { sound } = await ExpoAudio.Sound.createAsync(file);
