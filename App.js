@@ -7,6 +7,8 @@ import LoginScreen from './LoginScreen';
 import GameSession from './GameSession';
 import Register from './Register';
 import ForgotPassword from './ForgotPassword';
+import { authentication } from './Config';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const Stack = createNativeStackNavigator();
 
