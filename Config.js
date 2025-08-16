@@ -6,13 +6,13 @@ import "firebase/compat/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAzmDCIT6I7W1PsxcJQ00XHH5tuL6NvxUQ",
-  authDomain: "animalcombat-38b66.firebaseapp.com",
-  projectId: "animalcombat-38b66",
-  storageBucket: "animalcombat-38b66.firebasestorage.app",
-  messagingSenderId: "578786594403",
-  appId: "1:578786594403:web:ff9a08c5ea6e8cfe12f256",
-  measurementId: "G-GZ6BYGYJCS"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
