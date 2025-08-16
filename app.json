@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "AnimalCombat",
+    "slug": "AnimalCombat",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourcompany.animalcombat"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.yourcompany.animalcombat"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "scheme": "animalcombat"
+  }
+}
