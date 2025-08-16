@@ -1,12 +1,39 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, Animated, TouchableOpacity, Image } from 'react-native';
-import CustomButton from './CustomButton'; // Import the reusable button
-import { authentication } from './Config'; // Changed from './config' to './Config'
-import { createUserWithEmailAndPassword } from 'firebase/auth'; // Import Firebase auth method
-import { useBackground } from './BackgroundContext'; // Import useBackground
+import React, { useState, useCallback, useMemo } from 'react';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Image, Alert, Dimensions } from 'react-native';
+import CustomButton from './CustomButton';
+import { authentication, firebase } from './Config';
+import soundManager from './SoundManager';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { useBackground } from './BackgroundContext';
+import { firestore } from './Config'; // Your initialized Firestore instance
+import { doc, setDoc, serverTimestamp, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
+const { width, height } = Dimensions.get('window');
 
-const images = [
+// Screen scaling constants (based on 1929x2000 as normal size)
+const NORMAL_WIDTH = 1929;
+const NORMAL_HEIGHT = 2000;
+const SCALE_X = width / NORMAL_WIDTH;
+const SCALE_Y = height / NORMAL_HEIGHT;
+const SCALE = Math.min(SCALE_X, SCALE_Y) * 1.5; // Use the smaller scale to maintain proportions, increased by 1.5x
+
+const Register = ({ navigation }) => {
+  const { currentIndex } = useBackground();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [nameError, setNameError] = useState('');
+  const [birthDateError, setBirthDateError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+
+  // Memoize images array to prevent recreation on every render
+  const images = useMemo(() => [
   require('./assets/MenuBackGround/background/bg1.png'),
   require('./assets/MenuBackGround/background/bg2.png'),
   require('./assets/MenuBackGround/background/bg3.png'),
@@ -46,202 +73,364 @@ const images = [
   require('./assets/MenuBackGround/background/bg35.png'),
   require('./assets/MenuBackGround/background/bg36.png'),
   require('./assets/MenuBackGround/background/bg37.png')
-];
+  ], []);
 
-const Register = ({ navigation }) => {
-  const { currentIndex } = useBackground();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [emailError, setEmailError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [confirmPasswordError, setConfirmPasswordError] = useState('');
-  const [fadeAnim] = useState(new Animated.Value(0)); // Initial opacity
-  let passwordInput;
-  let confirmPasswordInput;
+  // Memoize validation patterns
+  const emailPattern = useMemo(() => /^[a-zA-Z0-9._%+-]+@.+\..+$/, []);
+  const passwordPattern = useMemo(() => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()?]).{6,12}$/, []);
+  const datePattern = useMemo(() => /^\d{4}-\d{2}-\d{2}$/, []);
 
-  const validateEmail = (email) => {
-    const emailPattern = /^[a-zA-Z0-9._%+-]+@.+\..+$/; // Ensure it contains @ and .
+  const validateName = useCallback((name) => {
+    if (name.length < 2) {
+      setNameError("Name must be at least 2 characters long");
+    } else {
+      setNameError("");
+    }
+  }, []);
+
+  const validateEmail = useCallback((email) => {
     if (!emailPattern.test(email)) {
       setEmailError("Invalid email format. Please include '@' and a domain.");
     } else {
       setEmailError("");
     }
-  };
+  }, [emailPattern]);
 
-  const validatePassword = (password) => {
-    const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()?]).{6,12}$/; // Updated regex
+  const validatePassword = useCallback((password) => {
     if (!passwordPattern.test(password)) {
       setPasswordError("Password must be 6-12 characters long and include at least one lowercase letter, one uppercase letter, one number, and one special character.");
     } else {
       setPasswordError("");
     }
-  };
+  }, [passwordPattern]);
 
-  const handleRegister = () => {
-    validateEmail(email);
-    validatePassword(password);
+  const validateBirthDate = useCallback((date) => {
+    if (!datePattern.test(date)) {
+      setBirthDateError("Please enter date in YYYY-MM-DD format");
+      return;
+    }
+    const [yStr, mStr, dStr] = date.split('-');
+    const year = parseInt(yStr, 10);
+    const month = parseInt(mStr, 10);
+    const day = parseInt(dStr, 10);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+      setBirthDateError("Invalid date components");
+      return;
+    }
+    if (month < 1 || month > 12) {
+      setBirthDateError("Month must be between 1 and 12");
+      return;
+    }
+    const daysInMonth = new Date(year, month, 0).getDate();
+    if (day < 1 || day > daysInMonth) {
+      setBirthDateError(`Day must be between 1 and ${daysInMonth}`);
+      return;
+    }
+    const birth = new Date(year, month - 1, day);
+    const now = new Date();
+    if (birth.getTime() > now.getTime()) {
+      setBirthDateError("Birth date cannot be in the future");
+      return;
+    }
+    setBirthDateError("");
+  }, [datePattern]);
 
-    if (password !== confirmPassword) {
+  const validateConfirmPassword = useCallback((confirmPass) => {
+    if (confirmPass !== password) {
       setConfirmPasswordError("Passwords do not match.");
     } else {
       setConfirmPasswordError("");
     }
+  }, [password]);
 
-    if (emailError || passwordError || confirmPasswordError || !email || !password || !confirmPassword) {
-      return; // Prevent registration if there's an error
+  const handleRegister = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      validateName(name);
+    validateEmail(email);
+    validatePassword(password);
+      validateBirthDate(birthDate);
+
+    if (password !== confirmPassword) {
+      setConfirmPasswordError("Passwords do not match.");
+        setIsLoading(false);
+        return;
     }
 
-    // Proceed with registration logic using Firebase
-    createUserWithEmailAndPassword(authentication, email, password)
-      .then((userCredential) => {
-        // Successfully registered
-        const user = userCredential.user;
-        console.log('User registered:', user);
-        
-        // Optionally navigate to the login screen or show a success message
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 750,
-          useNativeDriver: true,
-        }).start(() => {
-          navigation.navigate('Login'); // Navigate to Login screen
-        });
-      })
-      .catch((error) => {
-        const errorMessage = error.message;
-        console.error('Registration error:', errorMessage);
-        // Handle registration errors (e.g., show an alert)
-      });
-  };
-
-  const handleKeyPress = (e, nextField, isSubmit = false) => {
-    if (e.nativeEvent.key === 'Enter') {
-      if (isSubmit) {
-        handleRegister();
-      } else if (nextField) {
-        nextField.focus();
+      if (nameError || emailError || passwordError || confirmPasswordError || birthDateError || 
+          !name || !email || !password || !confirmPassword || !birthDate) {
+        setIsLoading(false);
+        return;
       }
+
+      try {
+        // Ensure unique username (name)
+        const q = query(collection(firestore, 'Users'), where('name', '==', name));
+        const qSnap = await getDocs(q);
+        if (!qSnap.empty) {
+          Alert.alert('Username Taken', 'This username is already in use. Please choose another name.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Create user with email and password
+        const userCredential = await createUserWithEmailAndPassword(authentication, email, password);
+        const user = userCredential.user;
+
+        // Parse birth date
+        const [year, month, day] = birthDate.split('-');
+
+        // Create the user document
+        const ALL_CHARACTER_NAMES = ['Cow', 'Tiger', 'Chameleon'];
+        const initialUnlocked = [ALL_CHARACTER_NAMES[Math.floor(Math.random() * ALL_CHARACTER_NAMES.length)]];
+        // Age calculation for initial achievements
+        const now = new Date();
+        const birthDateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        const ageYears = (now.getTime() - birthDateObj.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+        const initialObviousLiar = Number.isFinite(ageYears) && (ageYears > 100 || ageYears < 1.5);
+        const userDoc = {
+          userId: user.uid,
+          name,
+          email,
+          birthDate: {
+            year: parseInt(year),
+            month: parseInt(month),
+            day: parseInt(day)
+          },
+          createdAt: serverTimestamp(),
+          // Progress tracking
+          gamesPlayed: 0,
+          wins: 0,
+          losses: 0,
+          unlockedCharacters: initialUnlocked,
+          achievements: {
+            obviousLiar: initialObviousLiar,
+            didTheImpossible: false,
+            spammer: false,
+            winner: false,
+            master: false,
+          },
+          titles: initialObviousLiar ? ['Obvious Liar'] : [],
+          selectedTitle: null,
+        };
+
+        // Save to Firestore
+        const encodeEmail = (email) => email.replace(/\./g, ',');
+        await setDoc(doc(firestore, 'Users', encodeEmail(email)), userDoc);
+
+        const postMsg = initialObviousLiar 
+          ? 'Registration successful!\n\n🏆 Achievement Unlocked: "Obvious Liar"'
+          : 'Registration successful!';
+        Alert.alert('Success', postMsg);
+        // Faster navigation
+        setTimeout(() => {
+        navigation.navigate('Login');
+        }, 100);
+      } catch (authError) {
+        if (authError.code === 'auth/email-already-in-use') {
+          Alert.alert('Error', 'This email is already registered. Please use a different email or login.');
+        } else {
+          throw authError;
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [name, email, password, confirmPassword, birthDate, nameError, emailError, passwordError, confirmPasswordError, birthDateError, validateName, validateEmail, validatePassword, validateBirthDate, navigation]);
+
+  // Optimized input handlers
+  const handleNameChange = useCallback((text) => {
+    setName(text);
+    validateName(text);
+  }, [validateName]);
+
+  const handleEmailChange = useCallback((text) => {
+    setEmail(text);
+    validateEmail(text);
+  }, [validateEmail]);
+
+  const handlePasswordChange = useCallback((text) => {
+    setPassword(text);
+    validatePassword(text);
+  }, [validatePassword]);
+
+  const handleConfirmPasswordChange = useCallback((text) => {
+    setConfirmPassword(text);
+    validateConfirmPassword(text);
+  }, [validateConfirmPassword]);
+
+  const handleBirthDateChange = useCallback((text) => {
+    setBirthDate(text);
+    validateBirthDate(text);
+  }, [validateBirthDate]);
+
+  const navigateToLogin = useCallback(() => {
+    navigation.navigate('Login');
+  }, [navigation]);
+
+  // Memoize styles for better performance
+  const dynamicStyles = useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    backgroundImage: {
+      position: 'absolute',
+      width: '100%',
+      height: '100%',
+      resizeMode: 'cover',
+    },
+    contentContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 20 * SCALE,
+      zIndex: 1,
+    },
+    title: {
+      fontSize: 28 * SCALE,
+      fontWeight: 'bold',
+      marginBottom: 20 * SCALE,
+      color: '#333',
+      textShadowColor: 'rgba(0, 0, 0, 0.3)',
+      textShadowOffset: { width: 2, height: 2 },
+      textShadowRadius: 4,
+    },
+    input: {
+      width: '80%',
+      borderWidth: 1,
+      borderColor: '#ced4da',
+      borderRadius: 25 * SCALE,
+      marginBottom: 15 * SCALE,
+      padding: 15 * SCALE,
+      backgroundColor: '#fff',
+      fontSize: 16 * SCALE,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    errorText: {
+      color: 'red',
+      marginBottom: 10 * SCALE,
+      fontSize: 14 * SCALE,
+      textAlign: 'center',
+      paddingHorizontal: 20 * SCALE,
+    },
+    loginContainer: {
+      marginTop: 20 * SCALE,
+      padding: 10 * SCALE,
+    },
+    loginText: {
+      color: '#007BFF',
+      textDecorationLine: 'underline',
+      fontSize: 14 * SCALE,
+      fontWeight: '500',
+    },
+    muteButton: {
+      position: 'absolute',
+      top: 40 * SCALE,
+      right: 20 * SCALE,
+      width: 50 * SCALE,
+      height: 50 * SCALE,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      borderRadius: 25 * SCALE,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000,
+    },
+    muteButtonText: {
+      fontSize: 24 * SCALE,
+      color: 'white',
+    },
+  }), [SCALE]);
+
+  const toggleMute = useCallback(() => {
+    const newMutedState = soundManager.toggleMute();
+    setIsMuted(newMutedState);
+  }, []);
 
   return (
-    <View style={styles.container}>
-      <Image source={images[currentIndex]} style={styles.backgroundImage} />
-      <View style={styles.contentContainer}>
-        <Text style={styles.title}>Register</Text>
+    <View style={dynamicStyles.container}>
+      <Image source={images[currentIndex]} style={dynamicStyles.backgroundImage} />
+      
+      {/* Mute Button */}
+      <TouchableOpacity 
+        style={dynamicStyles.muteButton}
+        onPress={toggleMute}
+      >
+        <Text style={dynamicStyles.muteButtonText}>
+          {isMuted ? '🔇' : '🔊'}
+        </Text>
+      </TouchableOpacity>
+      
+      <View style={dynamicStyles.contentContainer}>
+        <Text style={dynamicStyles.title}>Register</Text>
+
+        <TextInput 
+          placeholder="Full Name" 
+          value={name} 
+          onChangeText={handleNameChange}
+          style={dynamicStyles.input}
+          autoCapitalize="words"
+          returnKeyType="next"
+        />
+        {nameError ? <Text style={dynamicStyles.errorText}>{nameError}</Text> : null}
         
         <TextInput 
           placeholder="Email" 
           value={email} 
-          onChangeText={(text) => {
-            setEmail(text);
-            validateEmail(text);
-          }} 
-          style={styles.input} 
-          onKeyPress={(e) => handleKeyPress(e, passwordInput)}
+          onChangeText={handleEmailChange}
+          style={dynamicStyles.input}
+          autoCapitalize="none"
+          keyboardType="email-address"
           returnKeyType="next"
         />
-        {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+        {emailError ? <Text style={dynamicStyles.errorText}>{emailError}</Text> : null}
         
         <TextInput 
-          ref={(input) => { passwordInput = input; }}
-          placeholder="Password" 
-          value={password} 
-          onChangeText={(text) => {
-            setPassword(text);
-            validatePassword(text);
-          }} 
-          secureTextEntry 
-          style={styles.input} 
-          onKeyPress={(e) => handleKeyPress(e, confirmPasswordInput)}
+          placeholder="Birth Date (YYYY-MM-DD)" 
+          value={birthDate} 
+          onChangeText={handleBirthDateChange}
+          style={dynamicStyles.input}
           returnKeyType="next"
         />
-        {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+        {birthDateError ? <Text style={dynamicStyles.errorText}>{birthDateError}</Text> : null}
 
         <TextInput 
-          ref={(input) => { confirmPasswordInput = input; }}
+          placeholder="Password" 
+          value={password} 
+          onChangeText={handlePasswordChange}
+          secureTextEntry 
+          style={dynamicStyles.input}
+          returnKeyType="next"
+        />
+        {passwordError ? <Text style={dynamicStyles.errorText}>{passwordError}</Text> : null}
+
+        <TextInput 
           placeholder="Confirm Password" 
           value={confirmPassword} 
-          onChangeText={(text) => {
-            setConfirmPassword(text);
-            if (text !== password) {
-              setConfirmPasswordError("Passwords do not match.");
-            } else {
-              setConfirmPasswordError("");
-            }
-          }} 
+          onChangeText={handleConfirmPasswordChange}
           secureTextEntry 
-          style={styles.input} 
-          onKeyPress={(e) => handleKeyPress(e, null, true)}
+          style={dynamicStyles.input}
           returnKeyType="done"
         />
-        {confirmPasswordError ? <Text style={styles.errorText}>{confirmPasswordError}</Text> : null}
+        {confirmPasswordError ? <Text style={dynamicStyles.errorText}>{confirmPasswordError}</Text> : null}
 
-        <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.loginContainer}>
-          <Text style={styles.loginText}>Already have an account? Login now!</Text>
+        <TouchableOpacity onPress={navigateToLogin} style={dynamicStyles.loginContainer}>
+          <Text style={dynamicStyles.loginText}>Already have an account? Login now!</Text>
         </TouchableOpacity>
 
-        <CustomButton title="Register" onPress={handleRegister} />
-
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <Text style={styles.successText}>Registration successful!</Text>
-        </Animated.View>
+        <CustomButton 
+          title={isLoading ? "Registering..." : "Register"} 
+          onPress={handleRegister}
+          disabled={isLoading}
+        />
       </View>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  backgroundImage: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  contentContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    zIndex: 1, // Ensure content is above background
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#333',
-  },
-  input: {
-    width: '20%', // Set width to 20% for better input field size
-    borderWidth: 1,
-    borderColor: '#ced4da',
-    borderRadius: 25,
-    marginBottom: 15,
-    padding: 15,
-    backgroundColor: '#fff',
-    fontSize: 16,
-  },
-  errorText: {
-    color: 'red',
-    marginBottom: 10,
-    fontSize: 14,
-  },
-  successText: {
-    color: 'green',
-    fontSize: 18,
-    marginTop: 20,
-  },
-  loginContainer: {
-    marginTop: 20,
-  },
-  loginText: {
-    color: '#007BFF', // Link color
-    textDecorationLine: 'underline', // Underline to indicate it's a link
-  },
-});
 
 export default Register; 

@@ -1,73 +1,66 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Text, Animated } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, StyleSheet, Text, Dimensions } from 'react-native';
 import RunningAnimation from './RunningAnimation';
 
+const { width, height } = Dimensions.get('window');
+
+// Screen scaling constants (based on 1929x2000 as normal size)
+const NORMAL_WIDTH = 1929;
+const NORMAL_HEIGHT = 2000;
+const SCALE_X = width / NORMAL_WIDTH;
+const SCALE_Y = height / NORMAL_HEIGHT;
+const SCALE = Math.min(SCALE_X, SCALE_Y); // Use the smaller scale to maintain proportions
+
 const LoadingScreen = () => {
-  const [progress, setProgress] = useState(0);
+  const [dots, setDots] = useState('.');
+  
+  // Optimized dots updater
+  const updateDots = useCallback(() => {
+    setDots(prev => {
+      if (prev === '...') return '.';
+      return prev + '.';
+    });
+  }, []);
   
   useEffect(() => {
-    // Simulate loading progress - faster now
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        return prev + 4; // Increment by 4% each time for faster loading
-      });
-    }, 20); // Update every 20ms for faster and still smooth animation
+    // Animate dots - faster animation
+    const dotsInterval = setInterval(updateDots, 300); // Faster dots
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      clearInterval(dotsInterval);
+    };
+  }, [updateDots]);
+
+  // Memoize styles for better performance
+  const dynamicStyles = useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: '#4CAF50',
+      zIndex: 0,
+    },
+    loadingText: {
+      fontSize: 48 * SCALE,
+      color: '#800000',
+      fontWeight: 'bold',
+      marginBottom: 100 * SCALE,
+      zIndex: 1,
+      textShadowColor: 'rgba(0, 0, 0, 0.3)',
+      textShadowOffset: { width: 2, height: 2 },
+      textShadowRadius: 4,
+    },
+  }), [SCALE]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.progressContainer}>
-        <View style={styles.progressBarContainer}>
-          <View style={[styles.progressBar, { width: `${progress}%` }]} />
-          <RunningAnimation 
-            isVisible={true} 
-            progress={progress} 
-            isLoadingScreen={true}
-          />
-        </View>
-        <Text style={styles.loadingText}>{`Loading... ${Math.round(progress)}%`}</Text>
-      </View>
+    <View style={dynamicStyles.container}>
+      <Text style={dynamicStyles.loadingText}>Loading{dots}</Text>
+      <RunningAnimation 
+        isVisible={true} 
+        isLoadingScreen={true}
+      />
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-  },
-  progressContainer: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  progressBarContainer: {
-    width: '80%',
-    height: 50, // Increased height to accommodate the running character
-    backgroundColor: '#ddd',
-    borderRadius: 25,
-    marginTop: 20,
-    overflow: 'hidden',
-    position: 'relative', // For absolute positioning of the character
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#800000',
-    borderRadius: 25,
-  },
-  loadingText: {
-    fontSize: 24,
-    color: '#800000',
-    fontWeight: 'bold',
-    marginTop: 20,
-  },
-});
 
 export default LoadingScreen; 

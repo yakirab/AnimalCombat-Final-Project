@@ -1,10 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, Animated, TouchableOpacity, Alert, Image } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { StyleSheet, Text, View, TextInput, Animated, TouchableOpacity, Alert, Image, Dimensions } from 'react-native';
 import CustomButton from './CustomButton'; // Import the reusable button
 import { authentication } from './Config';
+import soundManager from './SoundManager';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { useBackground } from './BackgroundContext';
+import RunningAnimation from './RunningAnimation';
+import { firestore } from './Config';
+import { doc, getDoc } from "firebase/firestore";
 
+const { width, height } = Dimensions.get('window');
+
+// Screen scaling constants (based on 1929x2000 as normal size)
+const NORMAL_WIDTH = 1929;
+const NORMAL_HEIGHT = 2000;
+const SCALE_X = width / NORMAL_WIDTH;
+const SCALE_Y = height / NORMAL_HEIGHT;
+const SCALE = Math.min(SCALE_X, SCALE_Y) * 1.5; // Use the smaller scale to maintain proportions, increased by 1.5x
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -14,10 +26,12 @@ const LoginScreen = ({ navigation }) => {
   const [fadeAnim] = useState(new Animated.Value(0)); // Initial opacity
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [isMuted, setIsMuted] = useState(false);
   const { currentIndex, setIsAnimationRunning } = useBackground();
   let passwordInput;
 
-  const images = [
+  // Memoize images array to prevent recreation on every render
+  const images = useMemo(() => [
     require('./assets/MenuBackGround/background/bg1.png'),
     require('./assets/MenuBackGround/background/bg2.png'),
     require('./assets/MenuBackGround/background/bg3.png'),
@@ -57,27 +71,29 @@ const LoginScreen = ({ navigation }) => {
     require('./assets/MenuBackGround/background/bg35.png'),
     require('./assets/MenuBackGround/background/bg36.png'),
     require('./assets/MenuBackGround/background/bg37.png')
-  ];
+  ], []);
 
-  const validateEmail = (email) => {
-    const emailPattern = /^[a-zA-Z0-9._%+-]+@.+\..+$/; // Ensure it contains @ and .
+  // Memoize validation patterns
+  const emailPattern = useMemo(() => /^[a-zA-Z0-9._%+-]+@.+\..+$/, []);
+  const passwordPattern = useMemo(() => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()?]).{6,12}$/, []);
+
+  const validateEmail = useCallback((email) => {
     if (!emailPattern.test(email)) {
       setEmailError("Invalid email format. Please include '@' and a domain.");
     } else {
       setEmailError("");
     }
-  };
+  }, [emailPattern]);
 
-  const validatePassword = (password) => {
-    const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()?]).{6,12}$/; // Updated regex
+  const validatePassword = useCallback((password) => {
     if (!passwordPattern.test(password)) {
       setPasswordError("Password must be 6-12 characters long and include at least one lowercase letter, one uppercase letter, one number, and one special character.");
     } else {
       setPasswordError("");
     }
-  };
+  }, [passwordPattern]);
 
-  const handleLogin = () => {
+  const handleLogin = useCallback(() => {
     validateEmail(email);
     validatePassword(password);
     setLoginError('');
@@ -91,15 +107,16 @@ const LoginScreen = ({ navigation }) => {
     signInWithEmailAndPassword(authentication, email, password)
       .then((userCredential) => {
         const user = userCredential.user;
-        console.log('User logged in:', user.email);
         
+        // Faster navigation - reduced delay
         setTimeout(() => {
           navigation.navigate('GameSession');
-        }, 500);
+        }, 200);
 
+        // Faster animation
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 750,
+          duration: 400, // Faster animation
           useNativeDriver: true,
         }).start();
       })
@@ -120,20 +137,18 @@ const LoginScreen = ({ navigation }) => {
             errorMessage = "Login error. Please try again";
         }
         setLoginError(errorMessage);
-        console.error('Login error:', error.message);
       })
       .finally(() => {
         setIsLoading(false);
       });
-  };
+  }, [email, password, emailError, passwordError, validateEmail, validatePassword, navigation, fadeAnim]);
 
-  const handleForgotPassword = () => {
+  const handleForgotPassword = useCallback(() => {
     if (!email) {
       setEmailError("Please enter your email address first");
       return;
     }
 
-    const emailPattern = /^[a-zA-Z0-9._%+-]+@.+\..+$/;
     if (!emailPattern.test(email)) {
       setEmailError("Please enter a valid email address");
       return;
@@ -164,14 +179,13 @@ const LoginScreen = ({ navigation }) => {
             errorMessage = "Error sending reset email. Please try again";
         }
         setLoginError(errorMessage);
-        console.error('Password reset error:', error.message);
       })
       .finally(() => {
         setIsLoading(false);
       });
-  };
+  }, [email, emailPattern]);
 
-  const handleKeyPress = (e, nextField, isSubmit = false) => {
+  const handleKeyPress = useCallback((e, nextField, isSubmit = false) => {
     if (e.nativeEvent.key === 'Enter') {
       if (isSubmit) {
         handleLogin();
@@ -179,57 +193,182 @@ const LoginScreen = ({ navigation }) => {
         nextField.focus();
       }
     }
-  };
+  }, [handleLogin]);
+
+  // Optimized email change handler
+  const handleEmailChange = useCallback((text) => {
+    setEmail(text);
+    validateEmail(text);
+    setLoginError('');
+  }, [validateEmail]);
+
+  // Optimized password change handler
+  const handlePasswordChange = useCallback((text) => {
+    setPassword(text);
+    validatePassword(text);
+    setLoginError('');
+  }, [validatePassword]);
+
+  // Navigation handlers
+  const navigateToRegister = useCallback(() => {
+    navigation.navigate('Register');
+  }, [navigation]);
+
+  const navigateToForgotPassword = useCallback(() => {
+    navigation.navigate('ForgotPassword');
+  }, [navigation]);
+
+  const toggleMute = useCallback(() => {
+    const newMutedState = soundManager.toggleMute();
+    setIsMuted(newMutedState);
+  }, []);
+
+  // Memoize styles for better performance
+  const dynamicStyles = useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    backgroundImage: {
+      position: 'absolute',
+      width: '100%',
+      height: '100%',
+      resizeMode: 'cover',
+    },
+    contentContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 20 * SCALE,
+      zIndex: 1,
+    },
+    title: {
+      fontSize: 28 * SCALE,
+      fontWeight: 'bold',
+      marginBottom: 20 * SCALE,
+      color: '#333',
+      textShadowColor: 'rgba(0, 0, 0, 0.3)',
+      textShadowOffset: { width: 2, height: 2 },
+      textShadowRadius: 4,
+    },
+    input: {
+      width: '20%',
+      borderWidth: 1,
+      borderColor: '#ced4da',
+      borderRadius: 25 * SCALE,
+      marginBottom: 15 * SCALE,
+      padding: 15 * SCALE,
+      backgroundColor: '#fff',
+      fontSize: 16 * SCALE,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    errorText: {
+      color: 'red',
+      marginBottom: 10 * SCALE,
+      fontSize: 14 * SCALE,
+      textAlign: 'center',
+    },
+    successText: {
+      color: 'green',
+      fontSize: 18 * SCALE,
+      marginTop: 20 * SCALE,
+      fontWeight: 'bold',
+    },
+    linkContainer: {
+      width: '20%',
+      marginVertical: 10 * SCALE,
+      alignItems: 'center',
+    },
+    linkButton: {
+      marginVertical: 5 * SCALE,
+      padding: 5 * SCALE,
+    },
+    linkText: {
+      color: '#007BFF',
+      textDecorationLine: 'underline',
+      fontSize: 14 * SCALE,
+      fontWeight: '500',
+    },
+    muteButton: {
+      position: 'absolute',
+      top: 40 * SCALE,
+      right: 20 * SCALE,
+      width: 50 * SCALE,
+      height: 50 * SCALE,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      borderRadius: 25 * SCALE,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000,
+    },
+    muteButtonText: {
+      fontSize: 24 * SCALE,
+      color: 'white',
+    },
+  }), [SCALE]);
 
   return (
-    <View style={styles.container}>
-      <Image source={images[currentIndex]} style={styles.backgroundImage} />
-      {/* <RunningAnimation /> */}
-      <View style={styles.contentContainer}>
-        <Text style={styles.title}>Login</Text>
+    <View style={dynamicStyles.container}>
+      <Image source={images[currentIndex]} style={dynamicStyles.backgroundImage} />
+      
+      {/* Mute Button */}
+      <TouchableOpacity 
+        style={dynamicStyles.muteButton}
+        onPress={toggleMute}
+      >
+        <Text style={dynamicStyles.muteButtonText}>
+          {isMuted ? '🔇' : '🔊'}
+        </Text>
+      </TouchableOpacity>
+      
+      <View style={dynamicStyles.contentContainer}>
+        <Text style={dynamicStyles.title}>Login</Text>
         
         <TextInput 
           placeholder="Email" 
           value={email} 
-          onChangeText={(text) => {
-            setEmail(text);
-            validateEmail(text);
-            setLoginError('');
-          }} 
-          style={styles.input} 
+          onChangeText={handleEmailChange}
+          style={dynamicStyles.input} 
           onKeyPress={(e) => handleKeyPress(e, passwordInput)}
           returnKeyType="next"
+          autoCapitalize="none"
+          keyboardType="email-address"
         />
-        {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+        {emailError ? <Text style={dynamicStyles.errorText}>{emailError}</Text> : null}
         
         <TextInput 
           ref={(input) => { passwordInput = input; }}
           placeholder="Password" 
           value={password} 
-          onChangeText={(text) => {
-            setPassword(text);
-            validatePassword(text);
-            setLoginError('');
-          }} 
+          onChangeText={handlePasswordChange}
           secureTextEntry 
-          style={styles.input} 
+          style={dynamicStyles.input} 
           onKeyPress={(e) => handleKeyPress(e, null, true)}
           returnKeyType="done"
         />
-        {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+        {passwordError ? <Text style={dynamicStyles.errorText}>{passwordError}</Text> : null}
         
-        {loginError ? <Text style={styles.errorText}>{loginError}</Text> : null}
+        {loginError ? <Text style={dynamicStyles.errorText}>{loginError}</Text> : null}
 
-        <View style={styles.linkContainer}>
-          <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.linkButton}>
-            <Text style={styles.linkText}>Don't have an account? Register now!</Text>
+        <View style={dynamicStyles.linkContainer}>
+          <TouchableOpacity onPress={() => {
+            soundManager.playClick();
+            navigateToRegister();
+          }} style={dynamicStyles.linkButton}>
+            <Text style={dynamicStyles.linkText}>Don't have an account? Register now!</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            onPress={() => navigation.navigate('ForgotPassword')} 
-            style={styles.linkButton}
+            onPress={() => {
+              soundManager.playClick();
+              navigateToForgotPassword();
+            }} 
+            style={dynamicStyles.linkButton}
           >
-            <Text style={styles.linkText}>Forgot Password?</Text>
+            <Text style={dynamicStyles.linkText}>Forgot Password?</Text>
           </TouchableOpacity>
         </View>
 
@@ -240,76 +379,11 @@ const LoginScreen = ({ navigation }) => {
         />
 
         <Animated.View style={{ opacity: fadeAnim }}>
-          <Text style={styles.successText}>Login successful!</Text>
+          <Text style={dynamicStyles.successText}>Login successful!</Text>
         </Animated.View>
       </View>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  backgroundImage: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  contentContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    zIndex: 1,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#333',
-  },
-  input: {
-    width: '20%', // Set width to 20% for better input field size
-    borderWidth: 1,
-    borderColor: '#ced4da',
-    borderRadius: 25,
-    marginBottom: 15,
-    padding: 15,
-    backgroundColor: '#fff',
-    fontSize: 16,
-  },
-  errorText: {
-    color: 'red',
-    marginBottom: 10,
-    fontSize: 14,
-  },
-  successText: {
-    color: 'green',
-    fontSize: 18,
-    marginTop: 20,
-  },
-  registerContainer: {
-    marginTop: 20,
-  },
-  registerText: {
-    color: '#007BFF', // Link color
-    textDecorationLine: 'underline', // Underline to indicate it's a link
-  },
-  linkContainer: {
-    width: '20%',
-    marginVertical: 10,
-    alignItems: 'center',
-  },
-  linkButton: {
-    marginVertical: 5,
-  },
-  linkText: {
-    color: '#007BFF',
-    textDecorationLine: 'underline',
-    fontSize: 14,
-  },
-});
 
 export default LoginScreen; 

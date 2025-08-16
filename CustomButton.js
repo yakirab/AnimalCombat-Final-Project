@@ -1,9 +1,15 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import soundManager from './SoundManager';
 
 const CustomButton = ({ title, onPress }) => {
+  const handlePress = () => {
+    soundManager.playClick();
+    if (onPress) onPress();
+  };
+
   return (
-    <TouchableOpacity style={styles.button} onPress={onPress}>
+    <TouchableOpacity style={styles.button} onPress={handlePress}>
       <Text style={styles.buttonText}>{title}</Text>
     </TouchableOpacity>
   );
