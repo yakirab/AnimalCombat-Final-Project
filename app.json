@@ -26,6 +26,15 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "animalcombat"
+    "scheme": "animalcombat",
+    "extra": {
+      "FIREBASE_API_KEY": "AIzaSyAzmDCIT6I7W1PsxcJQ00XHH5tuL6NvxUQ",
+      "FIREBASE_AUTH_DOMAIN": "animalcombat-38b66.firebaseapp.com",
+      "FIREBASE_PROJECT_ID": "animalcombat-38b66",
+      "FIREBASE_STORAGE_BUCKET": "animalcombat-38b66.firebasestorage.app",
+      "FIREBASE_MESSAGING_SENDER_ID": "578786594403",
+      "FIREBASE_APP_ID": "1:578786594403:web:ff9a08c5ea6e8cfe12f256",
+      "FIREBASE_MEASUREMENT_ID": "G-GZ6BYGYJCS"
+    }
   }
 }
