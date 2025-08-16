@@ -4,7 +4,7 @@ import CustomButton from './CustomButton'; // Import the reusable button
 import { authentication } from './Config';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { useBackground } from './BackgroundContext';
-import RunningAnimation from './RunningAnimation';
+
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
