@@ -730,25 +730,31 @@ const Game = () => {
     opponentActionRef.on('value', (snapshot) => {
       const action = snapshot.val();
       if (action) {
+        // Determine opponent character from live state (avoid stale route params)
+        const liveOpponentName = opponentStateRef.current?.character?.name
+          || opponentState.character?.name
+          || opponent.character?.name
+          || opponent.name;
+
         // Play sound effects for opponent actions
         if (action.currentAction === 'light') {
           soundManager.playPunch(); // All light attacks use punch sound
         } else if (action.currentAction === 'heavy') {
           // Character-specific heavy attack sounds
-          if (opponent.name === 'Cow') {
+          if (liveOpponentName === 'Cow') {
             soundManager.playKick();
-          } else if (opponent.name === 'Chameleon') {
+          } else if (liveOpponentName === 'Chameleon') {
             soundManager.playLick();
-          } else if (opponent.name === 'Tiger') {
+          } else if (liveOpponentName === 'Tiger') {
             soundManager.playScratch();
           }
         } else if (action.currentAction === 'special') {
           // Character-specific special attack sounds
-          if (opponent.name === 'Cow') {
+          if (liveOpponentName === 'Cow') {
             soundManager.playMilk();
-          } else if (opponent.name === 'Tiger') {
+          } else if (liveOpponentName === 'Tiger') {
             soundManager.playSmash();
-          } else if (opponent.name === 'Chameleon') {
+          } else if (liveOpponentName === 'Chameleon') {
             soundManager.playInvisible();
           }
         }
