@@ -34,3 +34,9 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# Ensure sound files are included
+!assets/Sounds/**/*.mp3
+!assets/Sounds/**/*.wav
+!assets/Sounds/**/*.m4a
+!assets/Sounds/**/*.aac
