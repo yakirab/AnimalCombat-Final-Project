@@ -1,14 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "git pull origin main && npm install && npm install --force expo-av expo-asset && npx expo export -p web",
-  "outputDirectory": "web-build",
-  "devCommand": "npx expo start --web",
-  "cleanUrls": true,
   "framework": null,
-  "rewrites": [{ "source": "/:path*", "destination": "/" }],
-  "build": {
-    "env": {
-      "EXPO_WEBPACK_FASTREFRESH": "true"
-    }
-  }
+  "buildCommand": "npx expo export -p web -o dist",
+  "outputDirectory": "dist",
+  "devCommand": "npx expo start --web",
+  "cleanUrls": true
 }
