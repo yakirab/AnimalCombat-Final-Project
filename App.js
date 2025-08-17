@@ -13,7 +13,7 @@ import CharacterChoosing from './CharacterChoosing';
 
 const Stack = createNativeStackNavigator();
 
-// Create a wrapper component to handle loading states only for GameSession
+// Create a wrapper component to handle loading states only for GameSession!
 const GameSessionWrapper = ({ component: Component, ...props }) => {
   const [isLoading, setIsLoading] = useState(true);
 
