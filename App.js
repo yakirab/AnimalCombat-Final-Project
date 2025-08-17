@@ -7,6 +7,8 @@ import LoginScreen from './LoginScreen';
 import GameSession from './GameSession';
 import Register from './Register';
 import ForgotPassword from './ForgotPassword';
+import Settings from './Settings';
+import CharacterChoosing from './CharacterChoosing';
 
 
 const Stack = createNativeStackNavigator();
@@ -55,6 +57,14 @@ export default function App() {
           <Stack.Screen 
             name="ForgotPassword" 
             component={ForgotPassword}
+          />
+          <Stack.Screen 
+            name="Settings" 
+            component={Settings}
+          />
+          <Stack.Screen 
+            name="CharacterChoosing" 
+            component={CharacterChoosing}
           />
         </Stack.Navigator>
       </NavigationContainer>

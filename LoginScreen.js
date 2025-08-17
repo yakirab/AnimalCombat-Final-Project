@@ -30,6 +30,11 @@ const LoginScreen = ({ navigation }) => {
   const { currentIndex, setIsAnimationRunning } = useBackground();
   let passwordInput;
 
+  // Initialize background music when component mounts
+  useEffect(() => {
+    soundManager.playBackgroundMusic(false); // false = menu music, not in-game
+  }, []);
+
   // Memoize images array to prevent recreation on every render
   const images = useMemo(() => [
     require('./assets/MenuBackGround/background/bg1.png'),

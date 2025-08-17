@@ -17,6 +17,11 @@ const GameSession = () => {
   const { currentIndex } = useBackground();
   const navigation = useNavigation();
 
+  // Initialize background music when component mounts
+  React.useEffect(() => {
+    soundManager.playBackgroundMusic(false); // false = menu music, not in-game
+  }, []);
+
   // Memoize images array to prevent recreation on every render
   const images = useMemo(() => [
     require('./assets/MenuBackGround/background2.png'),
