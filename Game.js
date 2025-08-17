@@ -165,7 +165,7 @@ const TITLE_EXPLANATIONS = {
 
 const CHARACTER_STATS = {
   Chameleon: {
-    hp: 100,
+    hp: 105, // Increased from 100
     speed: 15, // Increased walking speed
     heavy: 15,
     light: 5,
@@ -174,7 +174,7 @@ const CHARACTER_STATS = {
   Tiger: {
     hp: 110,
     speed: 18, // Increased walking speed
-    heavy: 10,
+    heavy: 11, // Increased from 10
     light: 5,
     special: 20
   },
@@ -182,7 +182,7 @@ const CHARACTER_STATS = {
     hp: 130,
     speed: 12, // Increased walking speed
     heavy: 12,
-    light: 5,
+    light: 6, // Increased from 5 (milk damage)
     special: "milk"
   }
 };
@@ -1346,6 +1346,25 @@ const Game = () => {
           }
         }
 
+        // Tiger heavy attack lunge
+        if (prev.character?.name === 'Tiger' && prev.currentAction === 'heavy') {
+          const anims = CHARACTER_ANIMATIONS[prev.character.name].heavy;
+          const maxFrames = anims.length;
+          const framesPassed = Math.max(prev.animationFrame, 0);
+          const progress = framesPassed / maxFrames; // 0..1
+          if (progress > 0.2 && progress < 0.7) { // Lunge during middle of animation
+            const lungeProgress = (progress - 0.2) / 0.5;
+            const lungeDistance = 300 * SCALE; // Tiger heavy lunge distance
+            const direction = prev.facingRight ? 1 : -1;
+            let targetX = prev.specialStartX + direction * lungeDistance * lungeProgress;
+            targetX = Math.max(LEFT_BORDER, Math.min(RIGHT_BORDER, targetX));
+            if (!checkCollision(targetX, prev.y, opponentState.x, opponentState.y)) {
+              newState.x = targetX;
+              updatePlayerPosition(targetX, prev.y);
+            }
+          }
+        }
+
         // Animation cadence
         const timeSinceLastAction = now - prev.lastActionTime;
         const animationSpeed = prev.currentAction === 'walk' ? WALK_FRAME_MS : 120;
@@ -1836,7 +1855,13 @@ const Game = () => {
           }
           break;
         case keybinds.special: // Special
-        if (!playerState.isAttacking && now - playerState.lastSpecialAttackTime > 1500) { // 1.5 second cooldown for special
+        // Character-specific special cooldowns
+        let specialCooldown = 2000; // Default 2 seconds for general special
+        if (playerState.character?.name === 'Tiger') {
+          specialCooldown = 3000; // Tiger special: 3 seconds (1.5s + 1.5s extra)
+        }
+        
+        if (!playerState.isAttacking && now - playerState.lastSpecialAttackTime > specialCooldown) {
           // Handle chameleon invisibility toggle with timer system
           if (playerState.character?.name === 'Chameleon') {
             // Check if cooldown is active
