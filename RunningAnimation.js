@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Animated, StyleSheet, Image, Dimensions, Easing, Platform } from 'react-native';
+import { Animated, StyleSheet, Dimensions, Easing, Platform, View } from 'react-native';
+import { Asset } from 'expo-asset';
+import { Image } from 'expo-image';
 
 const { width } = Dimensions.get('window');
 const START_POSITION = -100; // Adjusted for the progress bar
@@ -29,8 +31,45 @@ const RunningAnimation = ({ isVisible = true, progress = 0, isLoadingScreen = fa
   const position = useRef(new Animated.Value(START_POSITION)).current;
   const [currentFrame, setCurrentFrame] = useState(0);
   const [currentAnimation, setCurrentAnimation] = useState('cow');
+  const [preloadedUris, setPreloadedUris] = useState({});
+  const [isPreloaded, setIsPreloaded] = useState(false);
   
   const frames = ANIMATIONS[currentAnimation];
+
+  // Preload all animation frames
+  useEffect(() => {
+    let mounted = true;
+    
+    const preloadAnimations = async () => {
+      try {
+        const allAnimations = {};
+        
+        for (const [animType, frameArray] of Object.entries(ANIMATIONS)) {
+          const assets = await Asset.loadAsync(frameArray);
+          if (mounted) {
+            allAnimations[animType] = assets.map(asset => asset.uri);
+          }
+        }
+        
+        if (mounted) {
+          setPreloadedUris(allAnimations);
+          setIsPreloaded(true);
+        }
+      } catch (error) {
+        console.warn('Failed to preload animation frames:', error);
+        // Fallback to original method if preloading fails
+        if (mounted) {
+          setIsPreloaded(true);
+        }
+      }
+    };
+
+    preloadAnimations();
+    
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Only run animations if this is the loading screen
   useEffect(() => {
@@ -48,7 +87,7 @@ const RunningAnimation = ({ isVisible = true, progress = 0, isLoadingScreen = fa
 
   useEffect(() => {
     let frameInterval;
-    if (isVisible && isLoadingScreen) {
+    if (isVisible && isLoadingScreen && isPreloaded) {
       frameInterval = setInterval(() => {
         setCurrentFrame(prev => (prev + 1) % frames.length);
       }, 80);
@@ -58,7 +97,7 @@ const RunningAnimation = ({ isVisible = true, progress = 0, isLoadingScreen = fa
         clearInterval(frameInterval);
       }
     };
-  }, [frames, isVisible, isLoadingScreen]);
+  }, [frames, isVisible, isLoadingScreen, isPreloaded]);
 
   // Change character every 70 seconds
   useEffect(() => {
@@ -76,6 +115,28 @@ const RunningAnimation = ({ isVisible = true, progress = 0, isLoadingScreen = fa
   // Only show if this is the loading screen
   if (!isVisible || !isLoadingScreen) return null;
 
+  // Show loading state while preloading
+  if (!isPreloaded) {
+    return (
+      <Animated.View
+        style={[
+          styles.container,
+          {
+            transform: [
+              { translateX: position },
+              { scaleX: 1 }
+            ],
+          },
+        ]}
+      >
+        <View style={styles.runningCharacter} />
+      </Animated.View>
+    );
+  }
+
+  const currentUris = preloadedUris[currentAnimation];
+  const currentUri = currentUris ? currentUris[currentFrame] : null;
+
   return (
     <Animated.View
       style={[
@@ -88,10 +149,20 @@ const RunningAnimation = ({ isVisible = true, progress = 0, isLoadingScreen = fa
         },
       ]}
     >
-      <Image 
-        source={frames[currentFrame]}
-        style={styles.runningCharacter}
-      />
+      {currentUri ? (
+        <Image 
+          source={{ uri: currentUri }}
+          style={styles.runningCharacter}
+          transition={0} // Eliminates fade-in that causes transparency flash
+          cachePolicy="memory-disk" // Keeps frames warm between swaps
+        />
+      ) : (
+        // Fallback to original method if preloading failed
+        <Image 
+          source={frames[currentFrame]}
+          style={styles.runningCharacter}
+        />
+      )}
     </Animated.View>
   );
 };
