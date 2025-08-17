@@ -1,8 +1,8 @@
 {
   "version": 2,
   "framework": null,
-  "buildCommand": "npx expo export -p web -o dist",
-  "outputDirectory": "dist",
+  "buildCommand": "npx expo export -p web",
+  "outputDirectory": "web-build",
   "devCommand": "npx expo start --web",
   "cleanUrls": true
 }
