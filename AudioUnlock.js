@@ -13,23 +13,10 @@ const AudioUnlock = ({ onAudioUnlocked }) => {
     if (Platform.OS === 'web') {
       console.log('Running on web platform, setting up audio unlock');
       
-      // Check if audio context is suspended
-      const checkAudioContext = () => {
-        try {
-          // Always show the unlock modal on web to ensure audio works
-          console.log('Setting showUnlock to true');
-          setShowUnlock(true);
-          console.log('Audio unlock modal should be visible');
-        } catch (error) {
-          console.log('Audio context check failed:', error);
-          // If we can't check audio context, show the modal anyway
-          setShowUnlock(true);
-        }
-      };
-
-      // Check after a short delay to allow initialization
-      const timer = setTimeout(checkAudioContext, 1000);
-      return () => clearTimeout(timer);
+      // Force show the unlock modal on web immediately
+      console.log('Setting showUnlock to true immediately');
+      setShowUnlock(true);
+      console.log('Audio unlock modal should be visible');
     } else {
       // On non-web platforms, audio is always available
       console.log('Running on non-web platform, audio always available');
@@ -109,18 +96,25 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 9999,
+    zIndex: 99999,
+    elevation: 99999,
   },
   modal: {
     backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 10,
+    padding: 30,
+    borderRadius: 15,
     margin: 20,
-    maxWidth: 400,
+    maxWidth: 450,
+    minWidth: 300,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
   },
   title: {
     fontSize: 24,

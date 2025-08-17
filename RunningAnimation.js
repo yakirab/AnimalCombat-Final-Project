@@ -99,12 +99,12 @@ const RunningAnimation = ({ isVisible = true, progress = 0, isLoadingScreen = fa
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: -75, // Adjusted to place character on the loading line
+    bottom: 50, // Raised the character position
     zIndex: 2,
   },
   runningCharacter: {
-    width: 150, // Slightly smaller to fit better on the loading bar
-    height: 150,
+    width: 200, // Increased character size
+    height: 200,
     resizeMode: 'contain',
   },
 });

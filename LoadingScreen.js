@@ -39,22 +39,40 @@ const LoadingScreen = () => {
       alignItems: 'center',
       backgroundColor: '#4CAF50',
       zIndex: 0,
+      position: 'relative',
     },
     loadingText: {
-      fontSize: 48 * SCALE,
+      fontSize: 64 * SCALE, // Increased font size
       color: '#800000',
       fontWeight: 'bold',
-      marginBottom: 100 * SCALE,
+      marginBottom: 150 * SCALE, // Increased margin
       zIndex: 1,
       textShadowColor: 'rgba(0, 0, 0, 0.3)',
       textShadowOffset: { width: 2, height: 2 },
       textShadowRadius: 4,
+    },
+    progressBar: {
+      width: width * 0.8,
+      height: 20 * SCALE,
+      backgroundColor: 'rgba(255, 255, 255, 0.3)',
+      borderRadius: 10 * SCALE,
+      marginTop: 50 * SCALE,
+      zIndex: 1,
+    },
+    progressFill: {
+      height: '100%',
+      backgroundColor: '#800000',
+      borderRadius: 10 * SCALE,
+      width: '0%', // Will be animated
     },
   }), [SCALE]);
 
   return (
     <View style={dynamicStyles.container}>
       <Text style={dynamicStyles.loadingText}>Loading{dots}</Text>
+      <View style={dynamicStyles.progressBar}>
+        <View style={dynamicStyles.progressFill} />
+      </View>
       <RunningAnimation 
         isVisible={true} 
         isLoadingScreen={true}
