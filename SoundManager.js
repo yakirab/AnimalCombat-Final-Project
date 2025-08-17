@@ -84,23 +84,71 @@ class SoundManager {
     };
 
     // Create HTML Audio elements for web
-    const bgFiles = {
-      background: require('./assets/Sounds/BG/background.mp3'),
-      background2: require('./assets/Sounds/BG/background2.mp3'),
-      fighting: require('./assets/Sounds/BG/Fighting.mp3')
-    };
-
-    const sfxFiles = {
-      click: require('./assets/Sounds/SFX/click.mp3'),
-      invisible: require('./assets/Sounds/SFX/invisible.mp3'),
-      kick: require('./assets/Sounds/SFX/kick.mp3'),
-      lick: require('./assets/Sounds/SFX/Lick.mp3'),
-      milk: require('./assets/Sounds/SFX/milk.wav'),
-      punch: require('./assets/Sounds/SFX/punch.mp3'),
-      scratch: require('./assets/Sounds/SFX/scratch.wav'),
-      smash: require('./assets/Sounds/SFX/smash.mp3'),
-      walk: require('./assets/Sounds/SFX/walk.wav')
-    };
+    // Use try-catch for each file to handle potential build issues
+    const bgFiles = {};
+    const sfxFiles = {};
+    
+    try {
+      bgFiles.background = require('./assets/Sounds/BG/background.mp3');
+    } catch (e) {
+      console.warn('Could not load background.mp3:', e.message);
+    }
+    try {
+      bgFiles.background2 = require('./assets/Sounds/BG/background2.mp3');
+    } catch (e) {
+      console.warn('Could not load background2.mp3:', e.message);
+    }
+    try {
+      bgFiles.fighting = require('./assets/Sounds/BG/Fighting.mp3');
+    } catch (e) {
+      console.warn('Could not load Fighting.mp3:', e.message);
+    }
+    
+    try {
+      sfxFiles.click = require('./assets/Sounds/SFX/click.mp3');
+    } catch (e) {
+      console.warn('Could not load click.mp3:', e.message);
+    }
+    try {
+      sfxFiles.invisible = require('./assets/Sounds/SFX/invisible.mp3');
+    } catch (e) {
+      console.warn('Could not load invisible.mp3:', e.message);
+    }
+    try {
+      sfxFiles.kick = require('./assets/Sounds/SFX/kick.mp3');
+    } catch (e) {
+      console.warn('Could not load kick.mp3:', e.message);
+    }
+    try {
+      sfxFiles.lick = require('./assets/Sounds/SFX/Lick.mp3');
+    } catch (e) {
+      console.warn('Could not load Lick.mp3:', e.message);
+    }
+    try {
+      sfxFiles.milk = require('./assets/Sounds/SFX/milk.wav');
+    } catch (e) {
+      console.warn('Could not load milk.wav:', e.message);
+    }
+    try {
+      sfxFiles.punch = require('./assets/Sounds/SFX/punch.mp3');
+    } catch (e) {
+      console.warn('Could not load punch.mp3:', e.message);
+    }
+    try {
+      sfxFiles.scratch = require('./assets/Sounds/SFX/scratch.wav');
+    } catch (e) {
+      console.warn('Could not load scratch.wav:', e.message);
+    }
+    try {
+      sfxFiles.smash = require('./assets/Sounds/SFX/smash.mp3');
+    } catch (e) {
+      console.warn('Could not load smash.mp3:', e.message);
+    }
+    try {
+      sfxFiles.walk = require('./assets/Sounds/SFX/walk.wav');
+    } catch (e) {
+      console.warn('Could not load walk.wav:', e.message);
+    }
 
     // Load background music
     this.backgroundTracks = [];
@@ -197,30 +245,79 @@ class SoundManager {
       return;
     }
     
+    // Preload background music with individual try-catch blocks
+    this.backgroundTracks = [];
     try {
       const bg1 = await ExpoAudio.Sound.createAsync(require('./assets/Sounds/BG/background.mp3'));
+      this.backgroundTracks.push(bg1);
+    } catch (e) {
+      console.warn('Could not load background.mp3:', e.message);
+    }
+    try {
       const bg2 = await ExpoAudio.Sound.createAsync(require('./assets/Sounds/BG/background2.mp3'));
+      this.backgroundTracks.push(bg2);
+    } catch (e) {
+      console.warn('Could not load background2.mp3:', e.message);
+    }
+    try {
       const fighting = await ExpoAudio.Sound.createAsync(require('./assets/Sounds/BG/Fighting.mp3'));
-      
-      this.backgroundTracks = [bg1, bg2, fighting];
+      this.backgroundTracks.push(fighting);
+    } catch (e) {
+      console.warn('Could not load Fighting.mp3:', e.message);
+    }
+    
+    if (this.backgroundTracks.length > 0) {
       console.log('Background music loaded successfully');
-    } catch (bgError) {
-      console.warn('Failed to load background music:', bgError);
-      this.backgroundTracks = [];
     }
 
-    // Preload SFX
-    const sfxFiles = {
-      click: require('./assets/Sounds/SFX/click.mp3'),
-      invisible: require('./assets/Sounds/SFX/invisible.mp3'),
-      kick: require('./assets/Sounds/SFX/kick.mp3'),
-      lick: require('./assets/Sounds/SFX/Lick.mp3'),
-      milk: require('./assets/Sounds/SFX/milk.wav'),
-      punch: require('./assets/Sounds/SFX/punch.mp3'),
-      scratch: require('./assets/Sounds/SFX/scratch.wav'),
-      smash: require('./assets/Sounds/SFX/smash.mp3'),
-      walk: require('./assets/Sounds/SFX/walk.wav')
-    };
+    // Preload SFX with individual try-catch blocks
+    const sfxFiles = {};
+    
+    try {
+      sfxFiles.click = require('./assets/Sounds/SFX/click.mp3');
+    } catch (e) {
+      console.warn('Could not load click.mp3:', e.message);
+    }
+    try {
+      sfxFiles.invisible = require('./assets/Sounds/SFX/invisible.mp3');
+    } catch (e) {
+      console.warn('Could not load invisible.mp3:', e.message);
+    }
+    try {
+      sfxFiles.kick = require('./assets/Sounds/SFX/kick.mp3');
+    } catch (e) {
+      console.warn('Could not load kick.mp3:', e.message);
+    }
+    try {
+      sfxFiles.lick = require('./assets/Sounds/SFX/Lick.mp3');
+    } catch (e) {
+      console.warn('Could not load Lick.mp3:', e.message);
+    }
+    try {
+      sfxFiles.milk = require('./assets/Sounds/SFX/milk.wav');
+    } catch (e) {
+      console.warn('Could not load milk.wav:', e.message);
+    }
+    try {
+      sfxFiles.punch = require('./assets/Sounds/SFX/punch.mp3');
+    } catch (e) {
+      console.warn('Could not load punch.mp3:', e.message);
+    }
+    try {
+      sfxFiles.scratch = require('./assets/Sounds/SFX/scratch.wav');
+    } catch (e) {
+      console.warn('Could not load scratch.wav:', e.message);
+    }
+    try {
+      sfxFiles.smash = require('./assets/Sounds/SFX/smash.mp3');
+    } catch (e) {
+      console.warn('Could not load smash.mp3:', e.message);
+    }
+    try {
+      sfxFiles.walk = require('./assets/Sounds/SFX/walk.wav');
+    } catch (e) {
+      console.warn('Could not load walk.wav:', e.message);
+    }
 
     this.mobileSfxSources = sfxFiles;
     for (const [name, file] of Object.entries(sfxFiles)) {
