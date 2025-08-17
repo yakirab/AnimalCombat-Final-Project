@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Animated, StyleSheet, Image, Dimensions, Easing } from 'react-native';
+import { Animated, StyleSheet, Image, Dimensions, Easing, Platform } from 'react-native';
 
 const { width } = Dimensions.get('window');
 const START_POSITION = -100; // Adjusted for the progress bar

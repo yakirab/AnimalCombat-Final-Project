@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, TextInput, Animated, TouchableOpacity, Alert, Image, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, TextInput, Animated, TouchableOpacity, Alert, Image, Dimensions, Platform } from 'react-native';
 import CustomButton from './CustomButton'; // Import the reusable button
 import { authentication } from './Config';
 import soundManager from './SoundManager';
