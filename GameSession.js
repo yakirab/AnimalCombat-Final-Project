@@ -17,9 +17,11 @@ const GameSession = () => {
   const { currentIndex } = useBackground();
   const navigation = useNavigation();
 
-  // Initialize background music when component mounts!
+  // Initialize background music when component mounts (only if not on web)
   React.useEffect(() => {
-    soundManager.playBackgroundMusic(false); // false = menu music, not in-game
+    if (Platform.OS !== 'web') {
+      soundManager.playBackgroundMusic(false); // false = menu music, not in-game
+    }
   }, []);
 
   // Memoize images array to prevent recreation on every render

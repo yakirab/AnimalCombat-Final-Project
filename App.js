@@ -9,11 +9,12 @@ import Register from './Register';
 import ForgotPassword from './ForgotPassword';
 import Settings from './Settings';
 import CharacterChoosing from './CharacterChoosing';
+import AudioUnlock from './AudioUnlock';
 
 
 const Stack = createNativeStackNavigator();
 
-// Create a wrapper component to handle loading states only for GameSession!
+// Create a wrapper component to handle loading states only for GameSession
 const GameSessionWrapper = ({ component: Component, ...props }) => {
   const [isLoading, setIsLoading] = useState(true);
 
@@ -33,6 +34,8 @@ const GameSessionWrapper = ({ component: Component, ...props }) => {
 };
 
 export default function App() {
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
+
   return (
     <BackgroundProvider>
       <NavigationContainer>
@@ -68,6 +71,7 @@ export default function App() {
           />
         </Stack.Navigator>
       </NavigationContainer>
+      <AudioUnlock onAudioUnlocked={() => setAudioUnlocked(true)} />
     </BackgroundProvider>
   );
 }

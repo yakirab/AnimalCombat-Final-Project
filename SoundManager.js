@@ -264,6 +264,12 @@ class SoundManager {
       return;
     }
 
+    // On web, check if audio context is suspended (autoplay blocked)
+    if (this.isWeb && this.audioContext && this.audioContext.state === 'suspended') {
+      console.log('Audio context suspended - waiting for user interaction');
+      return;
+    }
+
     try {
       // console.log(`Playing background music, inGame: ${inGame}`);
       
@@ -390,6 +396,11 @@ class SoundManager {
     try {
       if (!this.isInitialized) {
         try { await this.initialize(); } catch {}
+      }
+
+      // On web, resume audio context if suspended (autoplay blocked)
+      if (this.isWeb && this.audioContext && this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
       }
 
       // console.log(`Playing SFX: ${soundName}`);

@@ -247,17 +247,17 @@ const Register = ({ navigation }) => {
   }, [validateName]);
 
   const handleEmailChange = useCallback((text) => {
-    setEmail(text);
-    validateEmail(text);
+            setEmail(text);
+            validateEmail(text);
   }, [validateEmail]);
 
   const handlePasswordChange = useCallback((text) => {
-    setPassword(text);
-    validatePassword(text);
+            setPassword(text);
+            validatePassword(text);
   }, [validatePassword]);
 
   const handleConfirmPasswordChange = useCallback((text) => {
-    setConfirmPassword(text);
+            setConfirmPassword(text);
     validateConfirmPassword(text);
   }, [validateConfirmPassword]);
 
@@ -272,58 +272,58 @@ const Register = ({ navigation }) => {
 
   // Memoize styles for better performance
   const dynamicStyles = useMemo(() => StyleSheet.create({
-    container: {
-      flex: 1,
-    },
-    backgroundImage: {
-      position: 'absolute',
-      width: '100%',
-      height: '100%',
-      resizeMode: 'cover',
-    },
-    contentContainer: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
+  container: {
+    flex: 1,
+  },
+  backgroundImage: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  contentContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
       padding: 20 * SCALE,
       zIndex: 1,
-    },
-    title: {
+  },
+  title: {
       fontSize: 28 * SCALE,
-      fontWeight: 'bold',
+    fontWeight: 'bold',
       marginBottom: 20 * SCALE,
-      color: '#333',
+    color: '#333',
       textShadowColor: 'rgba(0, 0, 0, 0.3)',
       textShadowOffset: { width: 2, height: 2 },
       textShadowRadius: 4,
-    },
-    input: {
+  },
+  input: {
       width: '80%',
-      borderWidth: 1,
-      borderColor: '#ced4da',
+    borderWidth: 1,
+    borderColor: '#ced4da',
       borderRadius: 25 * SCALE,
       marginBottom: 15 * SCALE,
       padding: 15 * SCALE,
-      backgroundColor: '#fff',
+    backgroundColor: '#fff',
       fontSize: 16 * SCALE,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
       shadowRadius: 4,
       elevation: 3,
-    },
-    errorText: {
-      color: 'red',
+  },
+  errorText: {
+    color: 'red',
       marginBottom: 10 * SCALE,
       fontSize: 14 * SCALE,
       textAlign: 'center',
       paddingHorizontal: 20 * SCALE,
-    },
-    loginContainer: {
+  },
+  loginContainer: {
       marginTop: 20 * SCALE,
       padding: 10 * SCALE,
-    },
-    loginText: {
+  },
+  loginText: {
       color: '#007BFF',
       textDecorationLine: 'underline',
       fontSize: 14 * SCALE,

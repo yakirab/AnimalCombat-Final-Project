@@ -30,9 +30,11 @@ const LoginScreen = ({ navigation }) => {
   const { currentIndex, setIsAnimationRunning } = useBackground();
   let passwordInput;
 
-  // Initialize background music when component mounts
+  // Initialize background music when component mounts (only if not on web)
   useEffect(() => {
-    soundManager.playBackgroundMusic(false); // false = menu music, not in-game
+    if (Platform.OS !== 'web') {
+      soundManager.playBackgroundMusic(false); // false = menu music, not in-game
+    }
   }, []);
 
   // Memoize images array to prevent recreation on every render
