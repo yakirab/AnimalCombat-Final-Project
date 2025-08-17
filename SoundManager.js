@@ -333,21 +333,27 @@ class SoundManager {
     }
 
     try {
-         // console.log(`Playing menu music track: ${this.currentBgTrack}`);
+      console.log(`Playing menu music track: ${this.currentBgTrack}`);
       this.backgroundMusic = this.backgroundTracks[this.currentBgTrack].sound;
       
       if (this.isWeb) {
+        console.log('Playing menu music on web, volume:', this.bgMusicVolume);
         this.backgroundMusic.volume = this.bgMusicVolume;
         this.backgroundMusic.currentTime = 0;
         
         // Use a separate play call for menu music
         const playPromise = this.backgroundMusic.play();
         if (playPromise) {
-          playPromise.catch(error => {
+          playPromise.then(() => {
+            console.log('Menu music started successfully');
+          }).catch(error => {
+            console.log('Menu music play failed:', error);
             // Retry once if autoplay blocked
             setTimeout(() => {
               if (this.backgroundMusic && this.backgroundMusic.paused) {
-                this.backgroundMusic.play().catch(() => {});
+                this.backgroundMusic.play().catch((retryError) => {
+                  console.log('Menu music retry failed:', retryError);
+                });
               }
             }, 100);
           });

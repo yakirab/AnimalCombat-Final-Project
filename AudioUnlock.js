@@ -12,19 +12,13 @@ const AudioUnlock = ({ onAudioUnlocked }) => {
       // Check if audio context is suspended
       const checkAudioContext = () => {
         try {
-          if (soundManager.audioContext && soundManager.audioContext.state === 'suspended') {
-            setShowUnlock(true);
-          } else {
-            setShowUnlock(false);
-            setAudioUnlocked(true);
-            if (onAudioUnlocked) onAudioUnlocked();
-          }
+          // Always show the unlock modal on web to ensure audio works
+          setShowUnlock(true);
+          console.log('Audio unlock modal should be visible');
         } catch (error) {
           console.log('Audio context check failed:', error);
-          // If we can't check audio context, assume it's unlocked
-          setShowUnlock(false);
-          setAudioUnlocked(true);
-          if (onAudioUnlocked) onAudioUnlocked();
+          // If we can't check audio context, show the modal anyway
+          setShowUnlock(true);
         }
       };
 
