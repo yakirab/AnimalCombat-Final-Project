@@ -17,7 +17,7 @@ const GameSession = () => {
   const { currentIndex } = useBackground();
   const navigation = useNavigation();
 
-  // Initialize background music when component mounts
+  // Initialize background music when component mounts!
   React.useEffect(() => {
     soundManager.playBackgroundMusic(false); // false = menu music, not in-game
   }, []);
