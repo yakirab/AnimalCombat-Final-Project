@@ -36,7 +36,7 @@ export const BackgroundProvider = ({ children }) => {
     Animated.timing(position, {
       toValue: isMovingRight ? END_POSITION : START_POSITION,
       duration: 5000,
-      useNativeDriver: true,
+              useNativeDriver: Platform.OS !== 'web',
     }).start(({ finished }) => {
       if (finished) {
         timeoutRef.current = setTimeout(() => {

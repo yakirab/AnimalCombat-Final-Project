@@ -145,7 +145,7 @@ const ForgotPassword = ({ navigation, route }) => {
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 300, // Faster
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
       // Wait - shorter time
       Animated.delay(1500), // Shorter wait
@@ -153,7 +153,7 @@ const ForgotPassword = ({ navigation, route }) => {
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 300, // Faster
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       })
     ]).start(() => {
       setShowSuccessMessage(false);

@@ -117,7 +117,7 @@ const LoginScreen = ({ navigation }) => {
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 400, // Faster animation
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }).start();
       })
       .catch((error) => {

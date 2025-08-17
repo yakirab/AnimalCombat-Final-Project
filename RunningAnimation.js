@@ -41,7 +41,7 @@ const RunningAnimation = ({ isVisible = true, progress = 0, isLoadingScreen = fa
         toValue: targetPosition,
         duration: 50,
         easing: Easing.linear,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }).start();
     }
   }, [progress, isVisible, isLoadingScreen]);
