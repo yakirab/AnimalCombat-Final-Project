@@ -6,6 +6,10 @@ import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/database";
 import "firebase/compat/firestore";
+import Constants from "expo-constants";
+
+// Get Firebase config from environment variables
+const extra = Constants?.expoConfig?.extra ?? {};
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
