@@ -37,6 +37,8 @@ const GameSessionWrapper = ({ component: Component, ...props }) => {
 export default function App() {
   const [audioUnlocked, setAudioUnlocked] = useState(false);
 
+  console.log('App component rendering, audioUnlocked:', audioUnlocked);
+
   return (
     <BackgroundProvider>
       <NavigationContainer>

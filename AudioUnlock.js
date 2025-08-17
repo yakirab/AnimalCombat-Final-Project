@@ -7,12 +7,17 @@ const AudioUnlock = ({ onAudioUnlocked }) => {
   const [audioUnlocked, setAudioUnlocked] = useState(false);
 
   useEffect(() => {
+    console.log('AudioUnlock useEffect triggered, Platform.OS:', Platform.OS);
+    
     // Only show on web platform
     if (Platform.OS === 'web') {
+      console.log('Running on web platform, setting up audio unlock');
+      
       // Check if audio context is suspended
       const checkAudioContext = () => {
         try {
           // Always show the unlock modal on web to ensure audio works
+          console.log('Setting showUnlock to true');
           setShowUnlock(true);
           console.log('Audio unlock modal should be visible');
         } catch (error) {
@@ -27,6 +32,7 @@ const AudioUnlock = ({ onAudioUnlocked }) => {
       return () => clearTimeout(timer);
     } else {
       // On non-web platforms, audio is always available
+      console.log('Running on non-web platform, audio always available');
       setAudioUnlocked(true);
       if (onAudioUnlocked) onAudioUnlocked();
     }
@@ -74,7 +80,10 @@ const AudioUnlock = ({ onAudioUnlocked }) => {
     }
   };
 
+  console.log('AudioUnlock render - showUnlock:', showUnlock, 'audioUnlocked:', audioUnlocked);
+  
   if (!showUnlock || audioUnlocked) {
+    console.log('AudioUnlock not rendering - showUnlock:', showUnlock, 'audioUnlocked:', audioUnlocked);
     return null;
   }
 
