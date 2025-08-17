@@ -412,7 +412,7 @@ class SoundManager {
         await this.audioContext.resume();
       }
 
-      // console.log(`Playing SFX: ${soundName}`);
+      console.log(`Playing SFX: ${soundName}, isWeb: ${this.isWeb}, isMuted: ${this.isMuted}`);
       
       if (this.isWeb) {
         // Don't unlock during SFX playback to avoid interfering with background music
@@ -438,6 +438,8 @@ class SoundManager {
             this.webSfxPools[soundName] = pool;
           }
         }
+        
+        console.log(`SFX pool for ${soundName}: ${pool?.length || 0} instances, found free instance: ${!!instance}`);
         if (instance) {
           instance.volume = this.sfxVolume;
           try { 
