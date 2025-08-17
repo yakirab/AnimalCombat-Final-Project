@@ -48,8 +48,24 @@ const AudioUnlock = ({ onAudioUnlocked }) => {
       // Play a silent sound to unlock audio
       soundManager.playClick();
       
-      // Start background music
-      soundManager.playBackgroundMusic(false);
+      // Wait a bit for audio context to be ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Start background music with retry
+      let retryCount = 0;
+      const startBackgroundMusic = async () => {
+        try {
+          await soundManager.playBackgroundMusic(false);
+        } catch (error) {
+          console.log('Background music start failed, retrying...', error);
+          if (retryCount < 3) {
+            retryCount++;
+            setTimeout(startBackgroundMusic, 200);
+          }
+        }
+      };
+      
+      await startBackgroundMusic();
       
       setAudioUnlocked(true);
       setShowUnlock(false);
@@ -57,6 +73,10 @@ const AudioUnlock = ({ onAudioUnlocked }) => {
       if (onAudioUnlocked) onAudioUnlocked();
     } catch (error) {
       console.error('Failed to unlock audio:', error);
+      // Even if there's an error, mark as unlocked to not block the UI
+      setAudioUnlocked(true);
+      setShowUnlock(false);
+      if (onAudioUnlocked) onAudioUnlocked();
     }
   };
 

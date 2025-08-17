@@ -10,6 +10,7 @@ import ForgotPassword from './ForgotPassword';
 import Settings from './Settings';
 import CharacterChoosing from './CharacterChoosing';
 import AudioUnlock from './AudioUnlock';
+import Game from './Game';
 
 
 const Stack = createNativeStackNavigator();
@@ -68,6 +69,10 @@ export default function App() {
           <Stack.Screen 
             name="CharacterChoosing" 
             component={CharacterChoosing}
+          />
+          <Stack.Screen 
+            name="Game" 
+            component={Game}
           />
         </Stack.Navigator>
       </NavigationContainer>

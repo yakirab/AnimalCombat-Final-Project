@@ -261,6 +261,7 @@ class SoundManager {
       this.stopBackgroundMusic();
     }
     if (!this.backgroundTracks || this.backgroundTracks.length === 0) {
+      console.log('No background tracks available');
       return;
     }
 
@@ -269,6 +270,8 @@ class SoundManager {
       console.log('Audio context suspended - waiting for user interaction');
       return;
     }
+
+    console.log('Starting background music, inGame:', inGame, 'tracks available:', this.backgroundTracks.length);
 
     try {
       // console.log(`Playing background music, inGame: ${inGame}`);
