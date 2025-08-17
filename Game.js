@@ -1012,6 +1012,28 @@ const Game = () => {
           !!obviousLiarAch && !!didImpossibleAch && !!spammerAch && !!winnerAch
         );
 
+        // Check current win rate for title requirements
+        const currentWinRate = newWins / newPlayed;
+        
+        // Check which titles should be removed based on current stats
+        const titlesToRemove = [];
+        const currentTitles = [...prevTitles];
+        
+        // Check Winner title - requires 60% win rate
+        if (currentTitles.includes('Winner') && currentWinRate < 0.6) {
+          titlesToRemove.push('Winner');
+          currentTitles.splice(currentTitles.indexOf('Winner'), 1);
+        }
+        
+        // Check Master title - requires all other titles
+        if (currentTitles.includes('Master')) {
+          const hasAllRequiredTitles = obviousLiarAch && didImpossibleAch && spammerAch && winnerAch;
+          if (!hasAllRequiredTitles) {
+            titlesToRemove.push('Master');
+            currentTitles.splice(currentTitles.indexOf('Master'), 1);
+          }
+        }
+        
         // Titles for newly unlocked achievements
         const newTitles = [];
         if (obviousLiarAch && !prevAchievements.obviousLiar) newTitles.push('Obvious Liar');
@@ -1037,12 +1059,28 @@ const Game = () => {
           achievements: achievementsUpdate,
         };
         await setDoc(myDocRef, updates, { merge: true });
-        if (newTitles.length > 0) {
-          await updateDoc(myDocRef, { titles: arrayUnion(...newTitles) });
+        
+                // Update titles - add new ones and remove invalid ones
+        if (newTitles.length > 0 || titlesToRemove.length > 0) {
+          // First add new titles
+          if (newTitles.length > 0) {
+            await updateDoc(myDocRef, { titles: arrayUnion(...newTitles) });
+          }
+          
+          // Then remove titles that no longer qualify
+          if (titlesToRemove.length > 0) {
+            await updateDoc(myDocRef, { titles: currentTitles });
+            
+            // Check if the player's selected title was removed
+            const currentSelectedTitle = myData?.selectedTitle;
+            if (currentSelectedTitle && titlesToRemove.includes(currentSelectedTitle)) {
+              await updateDoc(myDocRef, { selectedTitle: null });
+            }
+          }
         }
         
         // Show notifications (toast-like): render transient banners via local state
-        if (newUnlocks.length > 0 || newTitles.length > 0) {
+        if (newUnlocks.length > 0 || newTitles.length > 0 || titlesToRemove.length > 0) {
           const messages = [];
           if (newUnlocks.length > 0) messages.push(...newUnlocks);
           if (newTitles.length > 0) {
@@ -1051,8 +1089,14 @@ const Game = () => {
               : `🏆 Achievements Unlocked: ${newTitles.map(t => `"${t}"`).join(', ')}`;
             messages.push(titleMessage);
           }
+          if (titlesToRemove.length > 0) {
+            const removedMessage = titlesToRemove.length === 1 
+              ? `❌ Title Lost: "${titlesToRemove[0]}" - Requirements no longer met` 
+              : `❌ Titles Lost: ${titlesToRemove.map(t => `"${t}"`).join(', ')} - Requirements no longer met`;
+            messages.push(removedMessage);
+          }
           setTransientBanners(messages);
-          // Auto-hide after 5s
+          // Auto-hide after 9s
           setTimeout(() => setTransientBanners([]), 9000);
         }
       } catch {}
