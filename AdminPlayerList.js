@@ -46,7 +46,7 @@ const AdminPlayerList = () => {
   }, [fetchPlayers]);
 
   const banPlayer = useCallback(async (player, ms) => {
-    const docId = player.id || encodeEmail(player.email);
+    const docId = encodeEmail(player.email) || player.id;
     const until = Date.now() + ms;
     try {
       await updateDoc(doc(firestore, 'Users', docId), { bannedUntil: until });

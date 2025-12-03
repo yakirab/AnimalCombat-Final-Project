@@ -33,6 +33,7 @@ const GameSession = () => {
   const navigation = useNavigation();
   const [isAdmin, setIsAdmin] = useState(false);
   const [bannedUntil, setBannedUntil] = useState(null);
+  const [bannedRemaining, setBannedRemaining] = useState(0);
 
   // Initialize background music when component mounts (only if not on web)
   React.useEffect(() => {
@@ -83,6 +84,15 @@ const GameSession = () => {
     checkUser();
   }, []);
 
+  // Live countdown for ban timer
+  useEffect(() => {
+    if (!bannedUntil) return;
+    const update = () => setBannedRemaining(Math.max(0, bannedUntil - Date.now()));
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [bannedUntil]);
+
   const handlePlay = useCallback(() => {
     if (bannedUntil && bannedUntil > Date.now()) {
       const remaining = bannedUntil - Date.now();
@@ -115,6 +125,34 @@ const GameSession = () => {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+  },
+  banOverlay: {
+    position: 'absolute',
+    top: 120 * SCALE,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 50,
+    paddingHorizontal: 20 * SCALE,
+  },
+  banTitle: {
+    color: '#ff5555',
+    fontSize: 64 * SCALE,
+    fontWeight: '900',
+    textShadowColor: 'black',
+    textShadowOffset: { width: 4 * SCALE, height: 4 * SCALE },
+    textShadowRadius: 6 * SCALE,
+  },
+  banTimer: {
+    color: '#ffd166',
+    fontSize: 48 * SCALE,
+    fontWeight: '800',
+    marginTop: 10 * SCALE,
+  },
+  banUntil: {
+    color: '#fff',
+    fontSize: 28 * SCALE,
+    marginTop: 6 * SCALE,
   },
     buttonContainer: {
       position: 'absolute',
@@ -230,6 +268,13 @@ const GameSession = () => {
 
   return (
     <View style={dynamicStyles.container}>
+      {bannedUntil && bannedUntil > Date.now() && (
+        <View style={dynamicStyles.banOverlay}>
+          <Text style={dynamicStyles.banTitle}>You are banned!</Text>
+          <Text style={dynamicStyles.banTimer}>{formatDuration(bannedRemaining)} remaining</Text>
+          <Text style={dynamicStyles.banUntil}>Until: {new Date(bannedUntil).toLocaleString()}</Text>
+        </View>
+      )}
       <Image source={images[currentIndex % images.length]} style={dynamicStyles.backgroundImage} />
       <View style={dynamicStyles.buttonContainer}>
         <TouchableOpacity 
