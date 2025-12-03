@@ -12,6 +12,7 @@ import CharacterChoosing from './CharacterChoosing';
 import AudioUnlock from './AudioUnlock';
 import Game from './Game';
 import Leaderboard from './Leaderboard';
+import AdminPlayerList from './AdminPlayerList';
 
 
 const Stack = createNativeStackNavigator();
@@ -80,6 +81,10 @@ export default function App() {
           <Stack.Screen
             name="Leaderboard"
             component={Leaderboard}
+          />
+          <Stack.Screen
+            name="AdminPlayerList"
+            component={AdminPlayerList}
           />
         </Stack.Navigator>
       </NavigationContainer>

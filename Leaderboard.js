@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Dimensions, Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { collection, getDocs } from 'firebase/firestore';
 import { firestore } from './Config';
 
@@ -19,6 +20,7 @@ const ACHIEVEMENT_KEYS = [
 ];
 
 const Leaderboard = () => {
+  const navigation = useNavigation();
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedFilters, setSelectedFilters] = useState([]);
@@ -103,8 +105,19 @@ const Leaderboard = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Leaderboard</Text>
-      <Text style={styles.subtitle}>Sorted by wins per loss, then total wins</Text>
+      <View style={styles.headerRow}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
+        <View style={styles.headerTextWrap}>
+          <Text style={styles.title}>Leaderboard</Text>
+          <Text style={styles.subtitle}>Sorted by wins per loss, then total wins</Text>
+        </View>
+      </View>
 
       <View style={styles.filters}>
         {ACHIEVEMENT_KEYS.map((ach) => {
@@ -154,14 +167,35 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 48 * SCALE,
     fontWeight: '900',
-    textAlign: 'center',
   },
   subtitle: {
     color: '#b0bec5',
     fontSize: 22 * SCALE,
-    textAlign: 'center',
     marginTop: 8 * SCALE,
     marginBottom: 24 * SCALE,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 16 * SCALE,
+    marginBottom: 12 * SCALE,
+  },
+  backBtn: {
+    paddingHorizontal: 18 * SCALE,
+    paddingVertical: 10 * SCALE,
+    borderRadius: 12 * SCALE,
+    backgroundColor: '#263238',
+    borderWidth: 1,
+    borderColor: '#546e7a',
+  },
+  backText: {
+    color: '#eceff1',
+    fontSize: 18 * SCALE,
+    fontWeight: '800',
+  },
+  headerTextWrap: {
+    flex: 1,
   },
   filters: {
     flexDirection: 'row',

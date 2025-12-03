@@ -1,7 +1,9 @@
-import React, { useCallback, useMemo } from 'react';
-import { StyleSheet, View, Image, TouchableOpacity, Text, Dimensions } from 'react-native';
+import React, { useCallback, useMemo, useEffect, useState } from 'react';
+import { StyleSheet, View, Image, TouchableOpacity, Text, Dimensions, Alert, Platform } from 'react-native';
 import { useBackground } from './BackgroundContext';
 import { useNavigation } from '@react-navigation/native';
+import { authentication, firestore } from './Config';
+import { doc, getDoc } from 'firebase/firestore';
 import soundManager from './SoundManager';
 
 const { width, height } = Dimensions.get('window');
@@ -12,10 +14,13 @@ const NORMAL_HEIGHT = 2000;
 const SCALE_X = width / NORMAL_WIDTH;
 const SCALE_Y = height / NORMAL_HEIGHT;
 const SCALE = Math.min(SCALE_X, SCALE_Y) * 1.5; // Use the smaller scale to maintain proportions, increased by 1.5x
+const ADMIN_EMAILS = ['yakir.abramovich@gmail.com'];
 
 const GameSession = () => {
   const { currentIndex } = useBackground();
   const navigation = useNavigation();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [bannedUntil, setBannedUntil] = useState(null);
 
   // Initialize background music when component mounts (only if not on web)
   React.useEffect(() => {
@@ -31,10 +36,38 @@ const GameSession = () => {
     require('./assets/MenuBackGround/menubackground.png'),
   ], []);
 
+  // Load admin flag and ban status
+  useEffect(() => {
+    const checkUser = async () => {
+      const current = authentication.currentUser;
+      const email = current?.email || '';
+      setIsAdmin(ADMIN_EMAILS.includes(email));
+
+      if (email) {
+        try {
+          const snap = await getDoc(doc(firestore, 'Users', email.replace(/\./g, ',')));
+          if (snap.exists()) {
+            const data = snap.data();
+            if (data?.bannedUntil) {
+              setBannedUntil(data.bannedUntil);
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to fetch user doc', err);
+        }
+      }
+    };
+    checkUser();
+  }, []);
+
   const handlePlay = useCallback(() => {
+    if (bannedUntil && bannedUntil > Date.now()) {
+      Alert.alert('Banned', `You are banned until ${new Date(bannedUntil).toLocaleString()}`);
+      return;
+    }
     soundManager.playClick();
     navigation.navigate('CharacterChoosing');
-  }, [navigation]);
+  }, [navigation, bannedUntil]);
   const handleSettings = useCallback(() => {
     soundManager.playClick();
     navigation.navigate('Settings');
@@ -42,6 +75,10 @@ const GameSession = () => {
   const handleLeaderboard = useCallback(() => {
     soundManager.playClick();
     navigation.navigate('Leaderboard');
+  }, [navigation]);
+  const handleAdminPanel = useCallback(() => {
+    soundManager.playClick();
+    navigation.navigate('AdminPlayerList');
   }, [navigation]);
 
   // Memoize styles for better performance
@@ -58,10 +95,12 @@ const GameSession = () => {
     buttonContainer: {
       position: 'absolute',
       bottom: 100 * SCALE,
-      left: 400 * SCALE,
-      right: 400 * SCALE,
+      left: 200 * SCALE,
+      right: 200 * SCALE,
       flexDirection: 'row',
-      justifyContent: 'space-between',
+      flexWrap: 'wrap',
+      gap: 20 * SCALE,
+      justifyContent: 'center',
     },
   button: {
     backgroundColor: '#800000',
@@ -190,6 +229,15 @@ const GameSession = () => {
         >
           <Text style={dynamicStyles.buttonText}>Leaderboard</Text>
         </TouchableOpacity>
+        {isAdmin && (
+          <TouchableOpacity
+            style={dynamicStyles.button}
+            onPress={handleAdminPanel}
+            activeOpacity={0.8}
+          >
+            <Text style={dynamicStyles.buttonText}>Admin</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
