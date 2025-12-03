@@ -58,7 +58,7 @@ const AdminPlayerList = () => {
   }, [fetchPlayers]);
 
   const deletePlayer = useCallback((player) => {
-    const docId = encodeEmail(player.email) || player.id;
+    const docId = player.id || encodeEmail(player.email);
     if (!docId) {
       Alert.alert('Error', 'Missing player identifier');
       return;
@@ -71,6 +71,7 @@ const AdminPlayerList = () => {
         { text: 'Delete', style: 'destructive', onPress: async () => {
           try {
             await deleteDoc(doc(firestore, 'Users', docId));
+            Alert.alert('Deleted', 'Player record removed.');
             fetchPlayers();
           } catch (err) {
             Alert.alert('Error', err?.message || 'Failed to delete player');
