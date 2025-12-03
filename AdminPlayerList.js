@@ -57,29 +57,19 @@ const AdminPlayerList = () => {
     }
   }, [fetchPlayers]);
 
-  const deletePlayer = useCallback((player) => {
-    const docId = player.id || encodeEmail(player.email);
+  const deletePlayer = useCallback(async (player) => {
+    const docId = encodeEmail(player.email) || player.id;
     if (!docId) {
       Alert.alert('Error', 'Missing player identifier');
       return;
     }
-    Alert.alert(
-      'Delete player',
-      'This will remove the player record. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: async () => {
-          try {
-            await deleteDoc(doc(firestore, 'Users', docId));
-            Alert.alert('Deleted', 'Player record removed.');
-            fetchPlayers();
-          } catch (err) {
-            Alert.alert('Error', err?.message || 'Failed to delete player');
-          }
-        }},
-      ],
-      { cancelable: true }
-    );
+    try {
+      await deleteDoc(doc(firestore, 'Users', docId));
+      Alert.alert('Deleted', 'Player record removed.');
+      fetchPlayers();
+    } catch (err) {
+      Alert.alert('Error', err?.message || 'Failed to delete player');
+    }
   }, [fetchPlayers]);
 
   const renderPlayer = ({ item }) => {
