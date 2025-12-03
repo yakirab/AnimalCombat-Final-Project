@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
-import { StyleSheet, Text, View, Image, PanResponder, Dimensions, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, Text, View, Image, PanResponder, Dimensions, TouchableOpacity, Alert, Platform } from 'react-native';
 
 import { useBackground } from './BackgroundContext';
 
@@ -429,6 +429,9 @@ const Game = () => {
   const [pressedKeys, setPressedKeys] = useState(new Set());
   const pressedKeysRef = useRef(pressedKeys);
   useEffect(() => { pressedKeysRef.current = pressedKeys; }, [pressedKeys]);
+  
+  // Check if running on mobile device
+  const isMobile = Platform.OS !== 'web';
   const playerStateRef = useRef(playerState);
   useEffect(() => { playerStateRef.current = playerState; }, [playerState]);
   const [opponentState, setOpponentState] = useState({
@@ -1948,7 +1951,7 @@ const Game = () => {
     });
     
     switch (key) {
-        case 'f': // Stop blocking
+        case keybinds.block: // Stop blocking
         {
           const newAction = 'idle';
           if (playerState.currentAction !== newAction) {
@@ -1963,8 +1966,8 @@ const Game = () => {
           }));
         }
           break;
-        case 'a':
-        case 'd':
+        case keybinds.left:
+        case keybinds.right:
         {
           const keysHeld = pressedKeysRef.current;
           if (!keysHeld.has(keybinds.left) && !keysHeld.has(keybinds.right) && playerState.currentAction !== 'idle') {
@@ -1984,13 +1987,29 @@ const Game = () => {
   }, [playerState, syncAction, keybinds]);
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
+    // Only add keyboard listeners on web
+    if (Platform.OS === 'web') {
+      window.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('keyup', handleKeyUp);
+      return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+        window.removeEventListener('keyup', handleKeyUp);
+      };
+    }
   }, [handleKeyDown, handleKeyUp, keybinds]);
+
+  // Mobile touch handlers that simulate keyboard events
+  const handleMobileKeyDown = useCallback((key) => {
+    if (playerState.hp <= 0 || playerState.isDead || playerState.isFinishHim) return;
+    const fakeEvent = { key: key.toLowerCase() };
+    handleKeyDown(fakeEvent);
+  }, [playerState, handleKeyDown]);
+
+  const handleMobileKeyUp = useCallback((key) => {
+    if (playerState.hp <= 0 || playerState.isDead || playerState.isFinishHim) return;
+    const fakeEvent = { key: key.toLowerCase() };
+    handleKeyUp(fakeEvent);
+  }, [playerState, handleKeyUp]);
 
   // Cleanup Firebase connections when component unmounts
   useEffect(() => {
@@ -2086,10 +2105,12 @@ const Game = () => {
         </View>
       </View>
 
-      {/* Controls Display */}
-      <View style={styles.controlsContainer}>
-        <Text style={styles.controlsText}>A/D: Move | E: Light | Q: Heavy | F: Block | R: Special</Text>
-      </View>
+      {/* Controls Display - Only show on web */}
+      {!isMobile && (
+        <View style={styles.controlsContainer}>
+          <Text style={styles.controlsText}>A/D: Move | E: Light | Q: Heavy | F: Block | R: Special</Text>
+        </View>
+      )}
 
       {/* Fighting Game Arena */}
       <View style={styles.arena}>
@@ -2169,6 +2190,64 @@ const Game = () => {
           <TouchableOpacity style={styles.button} onPress={endGame}>
             <Text style={styles.buttonText}>Return to Character Selection</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Mobile On-Screen Controls */}
+      {isMobile && (
+        <View style={styles.mobileControlsContainer}>
+          {/* Movement Controls (Left Side) */}
+          <View style={styles.movementControls}>
+            <TouchableOpacity
+              style={[styles.mobileButton, styles.movementButton]}
+              onPressIn={() => handleMobileKeyDown(keybinds.left)}
+              onPressOut={() => handleMobileKeyUp(keybinds.left)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.movementButtonText}>←</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.mobileButton, styles.movementButton]}
+              onPressIn={() => handleMobileKeyDown(keybinds.right)}
+              onPressOut={() => handleMobileKeyUp(keybinds.right)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.movementButtonText}>→</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Action Controls (Right Side) */}
+          <View style={styles.actionControls}>
+            <TouchableOpacity
+              style={[styles.mobileButton, styles.actionButton, { backgroundColor: '#e74c3c' }]}
+              onPress={() => handleMobileKeyDown(keybinds.light)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.mobileButtonText}>Light</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.mobileButton, styles.actionButton, { backgroundColor: '#c0392b' }]}
+              onPress={() => handleMobileKeyDown(keybinds.heavy)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.mobileButtonText}>Heavy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.mobileButton, styles.actionButton, { backgroundColor: '#8e44ad' }]}
+              onPress={() => handleMobileKeyDown(keybinds.special)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.mobileButtonText}>Special</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.mobileButton, styles.actionButton, { backgroundColor: '#3498db' }]}
+              onPressIn={() => handleMobileKeyDown(keybinds.block)}
+              onPressOut={() => handleMobileKeyUp(keybinds.block)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.mobileButtonText}>Block</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
     </View>
@@ -2336,6 +2415,60 @@ const styles = StyleSheet.create({
   buttonText: {
     color: 'white',
     fontSize: 18,
+    fontWeight: 'bold',
+  },
+  mobileControlsContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20 * SCALE,
+    paddingBottom: 20 * SCALE,
+    zIndex: 40,
+    pointerEvents: 'box-none',
+  },
+  movementControls: {
+    flexDirection: 'row',
+    gap: 10 * SCALE,
+  },
+  actionControls: {
+    flexDirection: 'column',
+    gap: 8 * SCALE,
+    alignItems: 'flex-end',
+  },
+  mobileButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12 * SCALE,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  movementButton: {
+    width: 70 * SCALE,
+    height: 70 * SCALE,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  actionButton: {
+    width: 90 * SCALE,
+    height: 50 * SCALE,
+    minWidth: 80 * SCALE,
+  },
+  mobileButtonText: {
+    color: '#fff',
+    fontSize: 16 * SCALE,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  movementButtonText: {
+    color: '#2c3e50',
+    fontSize: 32 * SCALE,
     fontWeight: 'bold',
   },
 });
