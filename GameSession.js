@@ -3,7 +3,7 @@ import { StyleSheet, View, Image, TouchableOpacity, Text, Dimensions, Alert, Pla
 import { useBackground } from './BackgroundContext';
 import { useNavigation } from '@react-navigation/native';
 import { authentication, firestore } from './Config';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import soundManager from './SoundManager';
 
 const { width, height } = Dimensions.get('window');
@@ -15,6 +15,18 @@ const SCALE_X = width / NORMAL_WIDTH;
 const SCALE_Y = height / NORMAL_HEIGHT;
 const SCALE = Math.min(SCALE_X, SCALE_Y) * 1.5; // Use the smaller scale to maintain proportions, increased by 1.5x
 const ADMIN_EMAILS = ['yakir.abramovich@gmail.com'];
+const encodeEmail = (email) => (email || '').replace(/\./g, ',');
+
+const formatDuration = (ms) => {
+  if (ms <= 0) return 'now';
+  const sec = Math.floor(ms / 1000);
+  const days = Math.floor(sec / 86400);
+  const hours = Math.floor((sec % 86400) / 3600);
+  const minutes = Math.floor((sec % 3600) / 60);
+  if (days) return `${days}d ${hours}h`;
+  if (hours) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+};
 
 const GameSession = () => {
   const { currentIndex } = useBackground();
@@ -41,11 +53,22 @@ const GameSession = () => {
     const checkUser = async () => {
       const current = authentication.currentUser;
       const email = current?.email || '';
-      setIsAdmin(ADMIN_EMAILS.includes(email));
+      const encoded = encodeEmail(email);
+      const isAdminEmail = ADMIN_EMAILS.includes(email);
+      setIsAdmin(isAdminEmail);
+
+      // Persist admin to Admins collection for visibility
+      if (isAdminEmail && encoded) {
+        try {
+          await setDoc(doc(firestore, 'Admins', encoded), { email, createdAt: Date.now() }, { merge: true });
+        } catch (err) {
+          console.warn('Failed to sync admin doc', err);
+        }
+      }
 
       if (email) {
         try {
-          const snap = await getDoc(doc(firestore, 'Users', email.replace(/\./g, ',')));
+          const snap = await getDoc(doc(firestore, 'Users', encoded));
           if (snap.exists()) {
             const data = snap.data();
             if (data?.bannedUntil) {
@@ -62,7 +85,8 @@ const GameSession = () => {
 
   const handlePlay = useCallback(() => {
     if (bannedUntil && bannedUntil > Date.now()) {
-      Alert.alert('Banned', `You are banned until ${new Date(bannedUntil).toLocaleString()}`);
+      const remaining = bannedUntil - Date.now();
+      Alert.alert('Banned', `You are banned for ${formatDuration(remaining)} (until ${new Date(bannedUntil).toLocaleString()})`);
       return;
     }
     soundManager.playClick();

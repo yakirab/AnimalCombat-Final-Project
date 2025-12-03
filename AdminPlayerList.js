@@ -10,6 +10,7 @@ const NORMAL_HEIGHT = 2000;
 const SCALE_X = width / NORMAL_WIDTH;
 const SCALE_Y = height / NORMAL_HEIGHT;
 const SCALE = Math.min(SCALE_X, SCALE_Y);
+const encodeEmail = (email) => (email || '').replace(/\./g, ',');
 
 const BAN_OPTIONS = [
   { label: '1h', ms: 60 * 60 * 1000 },
@@ -44,10 +45,11 @@ const AdminPlayerList = () => {
     fetchPlayers();
   }, [fetchPlayers]);
 
-  const banPlayer = useCallback(async (playerId, ms) => {
+  const banPlayer = useCallback(async (player, ms) => {
+    const docId = player.id || encodeEmail(player.email);
     const until = Date.now() + ms;
     try {
-      await updateDoc(doc(firestore, 'Users', playerId), { bannedUntil: until });
+      await updateDoc(doc(firestore, 'Users', docId), { bannedUntil: until });
       Alert.alert('Player banned', `Banned until ${new Date(until).toLocaleString()}`);
       fetchPlayers();
     } catch (err) {
@@ -55,7 +57,8 @@ const AdminPlayerList = () => {
     }
   }, [fetchPlayers]);
 
-  const deletePlayer = useCallback((playerId) => {
+  const deletePlayer = useCallback((player) => {
+    const docId = player.id || encodeEmail(player.email);
     Alert.alert(
       'Delete player',
       'This will remove the player record. Continue?',
@@ -63,7 +66,7 @@ const AdminPlayerList = () => {
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: async () => {
           try {
-            await deleteDoc(doc(firestore, 'Users', playerId));
+            await deleteDoc(doc(firestore, 'Users', docId));
             fetchPlayers();
           } catch (err) {
             Alert.alert('Error', err?.message || 'Failed to delete player');
@@ -108,12 +111,12 @@ const AdminPlayerList = () => {
             <TouchableOpacity
               key={opt.label}
               style={styles.banBtn}
-              onPress={() => banPlayer(item.id, opt.ms)}
+              onPress={() => banPlayer(item, opt.ms)}
             >
               <Text style={styles.banBtnText}>Ban {opt.label}</Text>
             </TouchableOpacity>
           ))}
-          <TouchableOpacity style={styles.deleteBtn} onPress={() => deletePlayer(item.id)}>
+          <TouchableOpacity style={styles.deleteBtn} onPress={() => deletePlayer(item)}>
             <Text style={styles.deleteText}>Delete</Text>
           </TouchableOpacity>
         </View>
