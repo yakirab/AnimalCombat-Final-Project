@@ -39,6 +39,10 @@ const GameSession = () => {
     soundManager.playClick();
     navigation.navigate('Settings');
   }, [navigation]);
+  const handleLeaderboard = useCallback(() => {
+    soundManager.playClick();
+    navigation.navigate('Leaderboard');
+  }, [navigation]);
 
   // Memoize styles for better performance
   const dynamicStyles = useMemo(() => StyleSheet.create({
@@ -54,9 +58,10 @@ const GameSession = () => {
     buttonContainer: {
       position: 'absolute',
       bottom: 100 * SCALE,
-      left: 500 * SCALE,
-      right: 0,
-      alignItems: 'flex-start',
+      left: 400 * SCALE,
+      right: 400 * SCALE,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
     },
   button: {
     backgroundColor: '#800000',
@@ -172,11 +177,18 @@ const GameSession = () => {
           <Text style={dynamicStyles.buttonText}>Play</Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[dynamicStyles.button, { position: 'absolute', right: 500 * SCALE, backgroundColor: '#800000' }]}
+          style={dynamicStyles.button}
           onPress={handleSettings}
           activeOpacity={0.8}
         >
           <Text style={dynamicStyles.buttonText}>Settings</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={dynamicStyles.button}
+          onPress={handleLeaderboard}
+          activeOpacity={0.8}
+        >
+          <Text style={dynamicStyles.buttonText}>Leaderboard</Text>
         </TouchableOpacity>
       </View>
     </View>
