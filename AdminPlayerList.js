@@ -58,7 +58,11 @@ const AdminPlayerList = () => {
   }, [fetchPlayers]);
 
   const deletePlayer = useCallback((player) => {
-    const docId = player.id || encodeEmail(player.email);
+    const docId = encodeEmail(player.email) || player.id;
+    if (!docId) {
+      Alert.alert('Error', 'Missing player identifier');
+      return;
+    }
     Alert.alert(
       'Delete player',
       'This will remove the player record. Continue?',

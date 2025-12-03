@@ -71,9 +71,9 @@ const GameSession = () => {
           const snap = await getDoc(doc(firestore, 'Users', encoded));
           if (snap.exists()) {
             const data = snap.data();
-            if (data?.bannedUntil) {
-              setBannedUntil(data.bannedUntil);
-            }
+            const bannedValue = data?.bannedUntil;
+            const bannedMs = bannedValue?.toMillis ? bannedValue.toMillis() : bannedValue;
+            if (bannedMs) setBannedUntil(bannedMs);
           }
         } catch (err) {
           console.warn('Failed to fetch user doc', err);
