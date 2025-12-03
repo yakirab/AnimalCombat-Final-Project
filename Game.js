@@ -459,6 +459,7 @@ const Game = () => {
   const [playerDisplayName, setPlayerDisplayName] = useState('');
   const [opponentDisplayName, setOpponentDisplayName] = useState('');
   const [keybinds, setKeybinds] = useState({ left: 'a', right: 'd', block: 'f', light: 'e', heavy: 'q', special: 'r' });
+  const [isMobile, setIsMobile] = useState(false);
 
   const normalizeControls = useCallback((controls) => {
     const toKey = (v, fb) => {
@@ -478,6 +479,13 @@ const Game = () => {
   const hasFinalizedRef = useRef(false);
   const [playerTitle, setPlayerTitle] = useState(null);
   const [opponentTitle, setOpponentTitle] = useState(null);
+
+  // Detect mobile devices to show touch HUD
+  useEffect(() => {
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+    const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+    setIsMobile(mobileRegex.test(ua));
+  }, []);
 
   // Refs for accessing latest state in game loop
   const opponentStateRef = useRef(opponentState);
@@ -1992,6 +2000,10 @@ const Game = () => {
     };
   }, [handleKeyDown, handleKeyUp, keybinds]);
 
+  // Touch HUD triggers the same key handlers for mobile
+  const triggerKeyDown = useCallback((key) => handleKeyDown({ key }), [handleKeyDown]);
+  const triggerKeyUp = useCallback((key) => handleKeyUp({ key }), [handleKeyUp]);
+
   // Cleanup Firebase connections when component unmounts
   useEffect(() => {
     return () => {
@@ -2090,6 +2102,64 @@ const Game = () => {
       <View style={styles.controlsContainer}>
         <Text style={styles.controlsText}>A/D: Move | E: Light | Q: Heavy | F: Block | R: Special</Text>
       </View>
+
+      {/* Mobile HUD for on-screen controls */}
+      {isMobile && (
+        <View style={styles.mobileHud}>
+          <View style={styles.mobileRow}>
+            <TouchableOpacity
+              style={styles.mobileButton}
+              activeOpacity={0.7}
+              onPressIn={() => triggerKeyDown(keybinds.left)}
+              onPressOut={() => triggerKeyUp(keybinds.left)}
+            >
+              <Text style={styles.mobileButtonText}>Left</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.mobileButton}
+              activeOpacity={0.7}
+              onPressIn={() => triggerKeyDown(keybinds.right)}
+              onPressOut={() => triggerKeyUp(keybinds.right)}
+            >
+              <Text style={styles.mobileButtonText}>Right</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.mobileButton}
+              activeOpacity={0.7}
+              onPressIn={() => triggerKeyDown(keybinds.block)}
+              onPressOut={() => triggerKeyUp(keybinds.block)}
+            >
+              <Text style={styles.mobileButtonText}>Block</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.mobileRow}>
+            <TouchableOpacity
+              style={styles.mobileButton}
+              activeOpacity={0.7}
+              onPressIn={() => triggerKeyDown(keybinds.light)}
+              onPressOut={() => triggerKeyUp(keybinds.light)}
+            >
+              <Text style={styles.mobileButtonText}>Light</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.mobileButton}
+              activeOpacity={0.7}
+              onPressIn={() => triggerKeyDown(keybinds.heavy)}
+              onPressOut={() => triggerKeyUp(keybinds.heavy)}
+            >
+              <Text style={styles.mobileButtonText}>Heavy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.mobileButton}
+              activeOpacity={0.7}
+              onPressIn={() => triggerKeyDown(keybinds.special)}
+              onPressOut={() => triggerKeyUp(keybinds.special)}
+            >
+              <Text style={styles.mobileButtonText}>Special</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Fighting Game Arena */}
       <View style={styles.arena}>
@@ -2262,6 +2332,34 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+  },
+  mobileHud: {
+    position: 'absolute',
+    bottom: 140 * SCALE,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 35,
+    gap: 12 * SCALE,
+  },
+  mobileRow: {
+    flexDirection: 'row',
+    gap: 12 * SCALE,
+  },
+  mobileButton: {
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingVertical: 16 * SCALE,
+    paddingHorizontal: 22 * SCALE,
+    borderRadius: 14 * SCALE,
+    borderWidth: 2,
+    borderColor: '#fff',
+    minWidth: 120 * SCALE,
+    alignItems: 'center',
+  },
+  mobileButtonText: {
+    color: '#fff',
+    fontSize: 28 * SCALE,
+    fontWeight: 'bold',
   },
   arena: {
     position: 'absolute',
