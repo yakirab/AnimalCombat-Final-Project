@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
 import { StyleSheet, Text, View, Image, PanResponder, Dimensions, TouchableOpacity, Alert } from 'react-native';
+import { Asset } from 'expo-asset';
 
 import { useBackground } from './BackgroundContext';
 
@@ -460,6 +461,29 @@ const Game = () => {
   const [opponentDisplayName, setOpponentDisplayName] = useState('');
   const [keybinds, setKeybinds] = useState({ left: 'a', right: 'd', block: 'f', light: 'e', heavy: 'q', special: 'r' });
   const [isMobile, setIsMobile] = useState(false);
+  const [playerTitle, setPlayerTitle] = useState(null);
+  const [opponentTitle, setOpponentTitle] = useState(null);
+
+  // Preload all character frames and backgrounds to avoid white flashes while swapping images
+  const allAssets = useMemo(() => {
+    const animationFrames = Object.values(CHARACTER_ANIMATIONS)
+      .flatMap(anim => Object.values(anim || {}).flat());
+    return [...images, ...animationFrames];
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        await Asset.loadAsync(allAssets);
+        await Promise.all(allAssets.map(src => {
+          const uri = Asset.fromModule(src).uri;
+          return Image.prefetch(uri).catch(() => null);
+        }));
+      } catch (err) {
+        console.warn('Asset preload failed', err);
+      }
+    })();
+  }, [allAssets]);
 
   const normalizeControls = useCallback((controls) => {
     const toKey = (v, fb) => {
@@ -477,8 +501,6 @@ const Game = () => {
   }, []);
   const playerMovesUsedRef = useRef({ light: 0, heavy: 0, special: 0 });
   const hasFinalizedRef = useRef(false);
-  const [playerTitle, setPlayerTitle] = useState(null);
-  const [opponentTitle, setOpponentTitle] = useState(null);
 
   // Detect mobile devices to show touch HUD
   useEffect(() => {
@@ -767,20 +789,31 @@ const Game = () => {
           }
         }
         
-        setOpponentState(prev => ({
-          ...prev,
-          currentAction: action.currentAction,
-          facingRight: action.facingRight,
-          lastActionTime: action.timestamp || prev.lastActionTime,
-          animationFrame: 0,
-          isAttacking: ['light', 'heavy', 'special'].includes(action.currentAction),
-          attackStartTime: ['light', 'heavy', 'special'].includes(action.currentAction) ? action.timestamp : prev.attackStartTime,
-          hasHitThisAttack: ['light', 'heavy', 'special'].includes(action.currentAction) ? false : prev.hasHitThisAttack, // Reset hit tracking for new attacks
-          isInvisible: action.isInvisible || false, // Sync invisibility state
-          isDead: action.isDead || false,
-          isFinishHim: action.isFinishHim || false,
-          isBlocking: action.currentAction === 'block', // Sync blocking state
-        }));
+        setOpponentState(prev => {
+          const sameAction =
+            prev.currentAction === action.currentAction &&
+            prev.facingRight === action.facingRight &&
+            prev.isInvisible === !!action.isInvisible &&
+            prev.isDead === !!action.isDead &&
+            prev.isFinishHim === !!action.isFinishHim;
+
+          if (sameAction) return prev;
+
+          return {
+            ...prev,
+            currentAction: action.currentAction,
+            facingRight: action.facingRight,
+            lastActionTime: action.timestamp || prev.lastActionTime,
+            animationFrame: 0,
+            isAttacking: ['light', 'heavy', 'special'].includes(action.currentAction),
+            attackStartTime: ['light', 'heavy', 'special'].includes(action.currentAction) ? action.timestamp : prev.attackStartTime,
+            hasHitThisAttack: ['light', 'heavy', 'special'].includes(action.currentAction) ? false : prev.hasHitThisAttack,
+            isInvisible: !!action.isInvisible,
+            isDead: !!action.isDead,
+            isFinishHim: !!action.isFinishHim,
+            isBlocking: action.currentAction === 'block',
+          };
+        });
       }
     });
 
@@ -1415,7 +1448,8 @@ const Game = () => {
           newState.lastActionTime = now;
         }
 
-        return newState;
+        const changed = Object.keys(newState).some(key => newState[key] !== prev[key]);
+        return changed ? newState : prev;
       });
 
       // Opponent animation and physics with attack processing
@@ -1545,7 +1579,8 @@ const Game = () => {
           }
           newState.lastActionTime = now;
         }
-        return newState;
+        const changed = Object.keys(newState).some(key => newState[key] !== prev[key]);
+        return changed ? newState : prev;
       });
 
       // Update milk projectiles
