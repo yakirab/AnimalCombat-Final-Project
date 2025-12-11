@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BackgroundProvider } from './BackgroundContext';
@@ -13,6 +13,7 @@ import AudioUnlock from './AudioUnlock';
 import Game from './Game';
 import Leaderboard from './Leaderboard';
 import AdminPlayerList from './AdminPlayerList';
+import { preloadAllAssets } from './AssetPreloader';
 
 
 const Stack = createNativeStackNavigator();
@@ -40,6 +41,11 @@ export default function App() {
   const [audioUnlocked, setAudioUnlocked] = useState(false);
 
   console.log('App component rendering, audioUnlocked:', audioUnlocked);
+
+  // Preload all images/sprites once for the whole app to reduce flicker
+  useEffect(() => {
+    preloadAllAssets().catch(err => console.warn('Global asset preload failed', err));
+  }, []);
 
   return (
     <BackgroundProvider>

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Dimensions } from 'react-native';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Dimensions, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { firestore } from './Config';
@@ -22,6 +22,7 @@ const AdminPlayerList = () => {
   const navigation = useNavigation();
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchPlayers = useCallback(async () => {
     setLoading(true);
@@ -44,6 +45,31 @@ const AdminPlayerList = () => {
   useEffect(() => {
     fetchPlayers();
   }, [fetchPlayers]);
+
+  const filteredPlayers = useMemo(() => {
+    const term = (searchTerm || '').toLowerCase().trim();
+    if (!term) return players;
+    return players.filter((p) => {
+      const name = (p.name || '').toLowerCase();
+      const email = (p.email || '').toLowerCase();
+      return name.includes(term) || email.includes(term);
+    });
+  }, [players, searchTerm]);
+
+  const formatLastLogin = (player) => {
+    const ts =
+      player.lastLogin ||
+      player.lastLoginAt ||
+      player.lastActive ||
+      player.lastSeen ||
+      player.lastSignInTime ||
+      player.lastSignInAt;
+
+    if (!ts) return 'Last login: unknown';
+    const ms = ts?.toMillis ? ts.toMillis() : Number(ts);
+    if (!Number.isFinite(ms)) return 'Last login: unknown';
+    return `Last login: ${new Date(ms).toLocaleString()}`;
+  };
 
   const banPlayer = useCallback(async (player, ms) => {
     const docId = encodeEmail(player.email) || player.id;
@@ -86,6 +112,7 @@ const AdminPlayerList = () => {
           </Text>
         </View>
         <Text style={styles.email}>{item.email}</Text>
+        <Text style={styles.lastLogin}>{formatLastLogin(item)}</Text>
         <View style={styles.statsRow}>
           <Text style={styles.stat}>Wins: {item.wins ?? 0}</Text>
           <Text style={styles.stat}>Losses: {item.losses ?? 0}</Text>
@@ -141,12 +168,21 @@ const AdminPlayerList = () => {
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       ) : (
-        <FlatList
-          data={players}
-          keyExtractor={(item) => item.id}
-          renderItem={renderPlayer}
-          contentContainerStyle={styles.listContent}
-        />
+        <>
+          <TextInput
+            placeholder="Search by name or email"
+            placeholderTextColor="#90a4ae"
+            value={searchTerm}
+            onChangeText={setSearchTerm}
+            style={styles.searchInput}
+          />
+          <FlatList
+            data={filteredPlayers}
+            keyExtractor={(item) => item.id}
+            renderItem={renderPlayer}
+            contentContainerStyle={styles.listContent}
+          />
+        </>
       )}
     </View>
   );
@@ -197,6 +233,16 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 40 * SCALE,
   },
+  searchInput: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 10 * SCALE,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 14 * SCALE,
+    paddingVertical: 10 * SCALE,
+    color: '#fff',
+    marginBottom: 14 * SCALE,
+  },
   card: {
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 14 * SCALE,
@@ -230,6 +276,10 @@ const styles = StyleSheet.create({
   email: {
     color: '#cfd8dc',
     marginBottom: 8 * SCALE,
+  },
+  lastLogin: {
+    color: '#b0bec5',
+    marginBottom: 6 * SCALE,
   },
   statsRow: {
     flexDirection: 'row',
@@ -271,22 +321,26 @@ const styles = StyleSheet.create({
   },
   banBtn: {
     backgroundColor: '#455a64',
-    paddingHorizontal: 12 * SCALE,
-    paddingVertical: 8 * SCALE,
-    borderRadius: 10 * SCALE,
+    paddingHorizontal: 18 * SCALE,
+    paddingVertical: 12 * SCALE,
+    minWidth: 140 * SCALE,
+    borderRadius: 12 * SCALE,
   },
   banBtnText: {
     color: '#fff',
+    fontSize: 18 * SCALE,
     fontWeight: '800',
   },
   deleteBtn: {
     backgroundColor: '#b71c1c',
-    paddingHorizontal: 12 * SCALE,
-    paddingVertical: 8 * SCALE,
-    borderRadius: 10 * SCALE,
+    paddingHorizontal: 18 * SCALE,
+    paddingVertical: 12 * SCALE,
+    minWidth: 140 * SCALE,
+    borderRadius: 12 * SCALE,
   },
   deleteText: {
     color: '#fff',
+    fontSize: 18 * SCALE,
     fontWeight: '800',
   },
   loading: {

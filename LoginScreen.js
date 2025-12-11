@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { StyleSheet, Text, View, TextInput, Animated, TouchableOpacity, Alert, Image, Dimensions, Platform } from 'react-native';
 import CustomButton from './CustomButton'; // Import the reusable button
-import { authentication } from './Config';
+import { authentication, firestore } from './Config';
 import soundManager from './SoundManager';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { useBackground } from './BackgroundContext';
 import RunningAnimation from './RunningAnimation';
-import { firestore } from './Config';
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 const { width, height } = Dimensions.get('window');
 
@@ -29,6 +28,7 @@ const LoginScreen = ({ navigation }) => {
   const [isMuted, setIsMuted] = useState(false);
   const { currentIndex, setIsAnimationRunning } = useBackground();
   let passwordInput;
+  const encodeEmail = (value) => (value || '').replace(/\./g, ',');
 
   // Initialize background music when component mounts (only if not on web)
   useEffect(() => {
@@ -114,6 +114,14 @@ const LoginScreen = ({ navigation }) => {
     signInWithEmailAndPassword(authentication, email, password)
       .then((userCredential) => {
         const user = userCredential.user;
+        const encoded = encodeEmail(user?.email);
+        const now = Date.now();
+        if (encoded) {
+          setDoc(doc(firestore, 'Users', encoded), {
+            lastLogin: now,
+            lastLoginAt: now,
+          }, { merge: true }).catch((err) => console.warn('Failed to record login time', err));
+        }
         
         // Faster navigation - reduced delay
         setTimeout(() => {

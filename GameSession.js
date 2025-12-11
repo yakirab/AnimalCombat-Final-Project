@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { authentication, firestore } from './Config';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import soundManager from './SoundManager';
+import { signOut } from 'firebase/auth';
 
 const { width, height } = Dimensions.get('window');
 
@@ -114,6 +115,31 @@ const GameSession = () => {
     soundManager.playClick();
     navigation.navigate('AdminPlayerList');
   }, [navigation]);
+  const handleLogout = useCallback(async () => {
+    const user = authentication.currentUser;
+    const email = user?.email;
+    if (email) {
+      const encoded = encodeEmail(email);
+      const now = Date.now();
+      try {
+        await setDoc(doc(firestore, 'Users', encoded), {
+          lastLogout: now,
+          lastLogoutAt: now,
+        }, { merge: true });
+      } catch (err) {
+        console.warn('Failed to record logout time', err);
+      }
+    }
+    try {
+      await signOut(authentication);
+    } catch (err) {
+      console.warn('Sign out failed', err);
+    }
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Login' }],
+    });
+  }, [navigation]);
 
   // Memoize styles for better performance
   const dynamicStyles = useMemo(() => StyleSheet.create({
@@ -149,11 +175,11 @@ const GameSession = () => {
     fontWeight: '800',
     marginTop: 10 * SCALE,
   },
-  banUntil: {
-    color: '#fff',
-    fontSize: 28 * SCALE,
-    marginTop: 6 * SCALE,
-  },
+    banUntil: {
+      color: '#fff',
+      fontSize: 28 * SCALE,
+      marginTop: 6 * SCALE,
+    },
     buttonContainer: {
       position: 'absolute',
       bottom: 100 * SCALE,
@@ -176,6 +202,19 @@ const GameSession = () => {
       shadowOpacity: 0.3,
       shadowRadius: 6,
       elevation: 8,
+  },
+  logoutButton: {
+    backgroundColor: '#263238',
+    width: 250 * SCALE,
+    height: 100 * SCALE,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
   },
   buttonText: {
     color: 'black',
@@ -307,6 +346,13 @@ const GameSession = () => {
             <Text style={dynamicStyles.buttonText}>Admin</Text>
           </TouchableOpacity>
         )}
+        <TouchableOpacity
+          style={dynamicStyles.logoutButton}
+          onPress={handleLogout}
+          activeOpacity={0.8}
+        >
+          <Text style={dynamicStyles.buttonText}>Logout</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
