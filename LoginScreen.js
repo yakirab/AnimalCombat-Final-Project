@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, TextInput, Animated, TouchableOpacity, Alert, I
 import CustomButton from './CustomButton'; // Import the reusable button
 import { authentication, firestore } from './Config';
 import soundManager from './SoundManager';
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from 'firebase/auth';
 import { useBackground } from './BackgroundContext';
 import RunningAnimation from './RunningAnimation';
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -36,6 +36,19 @@ const LoginScreen = ({ navigation }) => {
       soundManager.playBackgroundMusic(false); // false = menu music, not in-game
     }
   }, []);
+
+  // Auto-redirect if already signed in
+  useEffect(() => {
+    const unsub = onAuthStateChanged(authentication, (user) => {
+      if (user) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'GameSession' }],
+        });
+      }
+    });
+    return () => unsub();
+  }, [navigation]);
 
   // Memoize images array to prevent recreation on every render
   const images = useMemo(() => [

@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
-import { getAuth } from "firebase/auth";
+import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
@@ -27,6 +27,11 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const app = initializeApp(firebaseConfig);
 const authentication = getAuth(app);
+
+// Persist auth between sessions (web)
+if (typeof window !== 'undefined') {
+  setPersistence(authentication, browserLocalPersistence).catch(() => {});
+}
 
 export const database = getDatabase(app);
 export const firestore = getFirestore(app);
