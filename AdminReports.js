@@ -21,6 +21,15 @@ const AdminReports = () => {
     const [reports, setReports] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    const showActionError = useCallback((actionLabel, err) => {
+        console.error(`${actionLabel} failed:`, err);
+        if (err?.code === 'permission-denied') {
+            Alert.alert('Permission Error', `${actionLabel} failed: Firestore rules denied this action.`);
+            return;
+        }
+        Alert.alert('Error', `${actionLabel} failed: ${err?.message || 'Unknown error'}`);
+    }, []);
+
     const safeBackgrounds = useMemo(
         () => (Array.isArray(BACKGROUND_IMAGES) && BACKGROUND_IMAGES.length > 0
             ? BACKGROUND_IMAGES
@@ -80,13 +89,12 @@ const AdminReports = () => {
                         await deleteDoc(doc(firestore, 'Reports', reportId));
                         setReports((prev) => prev.filter((r) => r.id !== reportId));
                     } catch (err) {
-                        console.error('Failed to delete report:', err);
-                        Alert.alert('Error', 'Failed to delete report');
+                        showActionError('Delete report', err);
                     }
                 }
             }
         ]);
-    }, []);
+    }, [showActionError]);
 
     const handleMarkDone = useCallback(async (reportId) => {
         try {
@@ -94,10 +102,9 @@ const AdminReports = () => {
             await updateDoc(doc(firestore, 'Reports', reportId), { status: 'done', resolvedAt });
             setReports((prev) => prev.map((r) => (r.id === reportId ? { ...r, status: 'done', resolvedAt } : r)));
         } catch (err) {
-            console.error('Failed to mark report done:', err);
-            Alert.alert('Error', 'Failed to mark report as done');
+            showActionError('Mark report as done', err);
         }
-    }, []);
+    }, [showActionError]);
 
     const handleDeleteAllForPlayer = useCallback((playerReports, playerLabel) => {
         if (!playerReports.length) return;
@@ -113,13 +120,12 @@ const AdminReports = () => {
                         await batch.commit();
                         setReports((prev) => prev.filter((r) => !playerReports.some((pr) => pr.id === r.id)));
                     } catch (err) {
-                        console.error('Failed to delete player reports:', err);
-                        Alert.alert('Error', 'Failed to delete all reports for this player');
+                        showActionError('Delete all player reports', err);
                     }
                 }
             }
         ]);
-    }, []);
+    }, [showActionError]);
 
     const handleMarkAllDoneForPlayer = useCallback(async (playerReports) => {
         if (!playerReports.length) return;
@@ -134,10 +140,9 @@ const AdminReports = () => {
                 playerReports.some((pr) => pr.id === r.id) ? { ...r, status: 'done', resolvedAt } : r
             )));
         } catch (err) {
-            console.error('Failed to mark player reports done:', err);
-            Alert.alert('Error', 'Failed to mark all reports as done');
+            showActionError('Mark all player reports as done', err);
         }
-    }, []);
+    }, [showActionError]);
 
     const handleBack = useCallback(() => {
         soundManager.playClick();
