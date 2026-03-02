@@ -5,7 +5,7 @@ import { Asset } from 'expo-asset';
 
 import { useBackground } from './BackgroundContext';
 
-import { authentication, database, firestore } from './Config';
+import { authentication, firebase, database, firestore } from './Config';
 import { doc, getDoc, updateDoc, setDoc, arrayUnion } from 'firebase/firestore';
 import { encodeEmail } from './utils';
 
@@ -526,7 +526,7 @@ const Game = () => {
     milkProjectilesRef.current = milkProjectiles;
   }, [milkProjectiles]);
 
-  const gameRoomRef = useRef(ref(database, `gameRooms/${gameRoomId}`));
+  const gameRoomRef = useRef(firebase.database().ref(`gameRooms/${gameRoomId}`));
 
   // Optimized Firebase update function with batching, throttling, and error handling
   const batchedFirebaseUpdate = useCallback((updates) => {
@@ -1150,6 +1150,15 @@ const Game = () => {
       finishTimeout = setTimeout(() => {
         setGameStatus('ended');
         gameRoomRef.current.off();
+        // Stop all sounds
+        soundManager.stopWalk();
+        soundManager.playBackgroundMusic(false);
+        // Delete the game room from Firebase
+        gameRoomRef.current.remove().catch(err => console.error('Failed to delete game room:', err));
+        // Navigate back to main menu after showing results
+        setTimeout(() => {
+          navigation.reset({ index: 0, routes: [{ name: 'GameSession' }] });
+        }, 5000);
       }, 3000);
     }
 
@@ -1163,9 +1172,32 @@ const Game = () => {
     // Start fighting music when game loads
     soundManager.playBackgroundMusic(true);
 
+    // Set up onDisconnect: if a player disconnects, mark them as dead and end the game
+    const myPlayerKey = playerNumber === 1 ? 'player1' : 'player2';
+    const disconnectRef = gameRoomRef.current.child(`${myPlayerKey}/disconnected`);
+    disconnectRef.onDisconnect().set(true);
+
+    // Listen for opponent disconnect
+    const oppPlayerKey = playerNumber === 1 ? 'player2' : 'player1';
+    const oppDisconnectRef = gameRoomRef.current.child(`${oppPlayerKey}/disconnected`);
+    oppDisconnectRef.on('value', (snap) => {
+      if (snap.val() === true && gameStatus !== 'ended') {
+        // Opponent disconnected — auto-win
+        setOpponentState(prev => ({
+          ...prev,
+          hp: 0,
+          isDead: true,
+          currentAction: 'dead',
+          animationFrame: 0
+        }));
+      }
+    });
+
     // Cleanup: return to menu music when game ends
     return () => {
       soundManager.playBackgroundMusic(false);
+      oppDisconnectRef.off();
+      disconnectRef.onDisconnect().cancel();
     };
   }, []);
 
@@ -1176,6 +1208,20 @@ const Game = () => {
       const now = Date.now();
       const deltaMs = Math.max(1, now - lastTick);
       lastTick = now;
+
+      // Skip game loop processing if game is ended
+      if (gameStatus === 'ended') return;
+
+      // Block cooldown reset: if cooldown expired, restore blocks
+      const ps0 = playerStateRef.current;
+      if (!ps0.canBlock && ps0.blockCooldownEnd > 0 && now >= ps0.blockCooldownEnd) {
+        setPlayerState(prev => ({
+          ...prev,
+          canBlock: true,
+          blocksRemaining: 3,
+          blockCooldownEnd: 0
+        }));
+      }
 
       // CONTINUOUS WALKING while move keys held (time-based speed)
       const keys = pressedKeysRef.current;
@@ -1338,7 +1384,7 @@ const Game = () => {
                     ...prevOpp,
                     blocksRemaining: prevOpp.blocksRemaining - 1,
                     canBlock: prevOpp.blocksRemaining - 1 > 0, // Can't block if no blocks left
-                    blockCooldownEnd: prevOpp.blocksRemaining - 1 <= 0 ? now + 3000 : prevOpp.blockCooldownEnd // 3 second cooldown
+                    blockCooldownEnd: prevOpp.blocksRemaining - 1 <= 0 ? now + 5000 : prevOpp.blockCooldownEnd // 5 second cooldown
                   }));
                 }
 
@@ -1523,7 +1569,7 @@ const Game = () => {
                     ...prevPlayer,
                     blocksRemaining: prevPlayer.blocksRemaining - 1,
                     canBlock: prevPlayer.blocksRemaining - 1 > 0, // Can't block if no blocks left
-                    blockCooldownEnd: prevPlayer.blocksRemaining - 1 <= 0 ? now + 3000 : prevPlayer.blockCooldownEnd // 3 second cooldown
+                    blockCooldownEnd: prevPlayer.blocksRemaining - 1 <= 0 ? now + 5000 : prevPlayer.blockCooldownEnd // 5 second cooldown
                   }));
                 }
 
@@ -1651,7 +1697,7 @@ const Game = () => {
                     ...prevPlayer,
                     blocksRemaining: prevPlayer.blocksRemaining - 1,
                     canBlock: prevPlayer.blocksRemaining - 1 > 0,
-                    blockCooldownEnd: prevPlayer.blocksRemaining - 1 <= 0 ? now + 3000 : prevPlayer.blockCooldownEnd
+                    blockCooldownEnd: prevPlayer.blocksRemaining - 1 <= 0 ? now + 5000 : prevPlayer.blockCooldownEnd // 5 second cooldown
                   }));
                 }
 
@@ -1717,7 +1763,7 @@ const Game = () => {
                     ...prevOpp,
                     blocksRemaining: prevOpp.blocksRemaining - 1,
                     canBlock: prevOpp.blocksRemaining - 1 > 0,
-                    blockCooldownEnd: prevOpp.blocksRemaining - 1 <= 0 ? now + 3000 : prevOpp.blockCooldownEnd
+                    blockCooldownEnd: prevOpp.blocksRemaining - 1 <= 0 ? now + 5000 : prevOpp.blockCooldownEnd // 5 second cooldown
                   }));
                 }
 
@@ -1774,7 +1820,7 @@ const Game = () => {
   }, [character.name, opponent.name, updatePlayerPosition, batchedFirebaseUpdate, syncAction, applyDamageToOpponent, keybinds]);
 
   const handleKeyDown = useCallback((e) => {
-    if (playerState.hp <= 0 || playerState.isDead || playerState.isFinishHim) return; // Prevent input if dead or in finish him state
+    if (playerState.hp <= 0 || playerState.isDead || playerState.isFinishHim || gameStatus === 'ended') return; // Prevent input if dead, finish him, or game ended
     const now = Date.now();
     const key = e.key.toLowerCase();
 
@@ -1977,7 +2023,7 @@ const Game = () => {
   }, [playerState, width, character.name, playerNumber, updatePlayerPosition, syncAction, createMilkProjectile, keybinds]);
 
   const handleKeyUp = useCallback((e) => {
-    if (playerState.hp <= 0 || playerState.isDead || playerState.isFinishHim) return; // Prevent input if dead or in finish him state
+    if (playerState.hp <= 0 || playerState.isDead || playerState.isFinishHim || gameStatus === 'ended') return; // Prevent input if dead, finish him, or game ended
     const now = Date.now();
     const key = e.key.toLowerCase();
 

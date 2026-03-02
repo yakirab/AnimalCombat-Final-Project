@@ -1,0 +1,74 @@
+@startuml UML
+skinparam componentStyle rectangle
+
+component App
+component BackgroundContext
+component Config
+component SoundManager
+component AudioUnlock
+component AssetPreloader
+component LoadingScreen
+component RunningAnimation
+component CustomButton
+component LoginScreen
+component Register
+component ForgotPassword
+component Settings
+component Leaderboard
+component AdminPlayerList
+component GameSession
+component CharacterChoosing
+component Game
+
+App --> BackgroundContext : wraps
+App --> AudioUnlock
+App --> AssetPreloader
+App --> LoadingScreen
+App --> LoginScreen
+App --> GameSession
+App --> Register
+App --> ForgotPassword
+App --> Settings
+App --> CharacterChoosing
+App --> Game
+App --> Leaderboard
+App --> AdminPlayerList
+
+BackgroundContext ..> LoginScreen
+BackgroundContext ..> Register
+BackgroundContext ..> ForgotPassword
+BackgroundContext ..> Settings
+BackgroundContext ..> CharacterChoosing
+BackgroundContext ..> GameSession
+BackgroundContext ..> Game
+
+Config ..> LoginScreen
+Config ..> Register
+Config ..> ForgotPassword
+Config ..> Settings
+Config ..> CharacterChoosing
+Config ..> GameSession
+Config ..> Game
+Config ..> Leaderboard
+Config ..> AdminPlayerList
+
+SoundManager ..> AudioUnlock
+SoundManager ..> CustomButton
+SoundManager ..> LoginScreen
+SoundManager ..> Register
+SoundManager ..> ForgotPassword
+SoundManager ..> Settings
+SoundManager ..> CharacterChoosing
+SoundManager ..> GameSession
+SoundManager ..> Game
+
+LoadingScreen ..> RunningAnimation
+LoginScreen ..> CustomButton
+Register ..> CustomButton
+ForgotPassword ..> CustomButton
+CharacterChoosing --> Game
+GameSession --> CharacterChoosing
+GameSession --> Settings
+GameSession --> Leaderboard
+GameSession --> AdminPlayerList
+@enduml

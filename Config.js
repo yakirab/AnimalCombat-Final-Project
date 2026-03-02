@@ -2,6 +2,8 @@ import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import firebase from "firebase/compat/app";
+import "firebase/compat/database";
 import Constants from "expo-constants";
 
 // Get Firebase config from environment variables
@@ -19,7 +21,8 @@ const firebaseConfig = {
   measurementId: extra.FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase (modular SDK only)
+// Initialize Firebase (modular SDK for most things, compat for RTDB refs in Game.js)
+firebase.initializeApp(firebaseConfig);
 const app = initializeApp(firebaseConfig);
 const authentication = getAuth(app);
 
@@ -30,4 +33,4 @@ if (typeof window !== 'undefined') {
 
 export const database = getDatabase(app);
 export const firestore = getFirestore(app);
-export { authentication };
+export { firebase, authentication };

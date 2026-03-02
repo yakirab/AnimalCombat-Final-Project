@@ -1,0 +1,18 @@
+@startuml
+skinparam actorStyle awesome
+
+actor "Player 1 (Lion)" as P1
+participant "React Native App" as App
+database "Firebase / Server" as Server
+actor "Player 2 (Bear)" as P2
+
+P1 -> App : Select "Special Attack"
+App -> App : Calculate Damage (JS Logic)
+App -> Server : Update Room Status {attacker: P1, damage: 25}
+
+Server -> Server : Validate Turn
+Server -> P2 : Real-time Notification: "You were hit!"
+
+P2 -> App : Update Health UI
+App -> P1 : Show "Attack Successful"
+@enduml

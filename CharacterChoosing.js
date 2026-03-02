@@ -5,8 +5,8 @@ import { authentication, database, firestore } from './Config';
 import soundManager from './SoundManager';
 import { useNavigation } from '@react-navigation/native';
 import { ref, push, set, onValue, off, get, update, child, serverTimestamp, remove, onDisconnect } from "firebase/database";
-import { updateProfile } from "firebase/auth";
 import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
+import { encodeEmail } from './utils';
 
 const { width, height } = Dimensions.get('window');
 
@@ -18,47 +18,8 @@ const SCALE_Y = height / NORMAL_HEIGHT;
 const SCALE = Math.min(SCALE_X, SCALE_Y) * 1.8; // Use the smaller scale to maintain proportions, increased by 1.8x
 
 // Memoize static assets to prevent recreation
-const BACKGROUND_IMAGES = [
-  require('./assets/MenuBackGround/background/bg1.png'),
-  require('./assets/MenuBackGround/background/bg2.png'),
-  require('./assets/MenuBackGround/background/bg3.png'),
-  require('./assets/MenuBackGround/background/bg4.png'),
-  require('./assets/MenuBackGround/background/bg5.png'),
-  require('./assets/MenuBackGround/background/bg6.png'),
-  require('./assets/MenuBackGround/background/bg7.png'),
-  require('./assets/MenuBackGround/background/bg8.png'),
-  require('./assets/MenuBackGround/background/bg9.png'),
-  require('./assets/MenuBackGround/background/bg10.png'),
-  require('./assets/MenuBackGround/background/bg11.png'),
-  require('./assets/MenuBackGround/background/bg12.png'),
-  require('./assets/MenuBackGround/background/bg13.png'),
-  require('./assets/MenuBackGround/background/bg132.png'),
-  require('./assets/MenuBackGround/background/bg133.png'),
-  require('./assets/MenuBackGround/background/bg14.png'),
-  require('./assets/MenuBackGround/background/bg15.png'),
-  require('./assets/MenuBackGround/background/bg16.png'),
-  require('./assets/MenuBackGround/background/bg17.png'),
-  require('./assets/MenuBackGround/background/bg18.png'),
-  require('./assets/MenuBackGround/background/bg19.png'),
-  require('./assets/MenuBackGround/background/bg20.png'),
-  require('./assets/MenuBackGround/background/bg21.png'),
-  require('./assets/MenuBackGround/background/bg22.png'),
-  require('./assets/MenuBackGround/background/bg23.png'),
-  require('./assets/MenuBackGround/background/bg24.png'),
-  require('./assets/MenuBackGround/background/bg25.png'),
-  require('./assets/MenuBackGround/background/bg26.png'),
-  require('./assets/MenuBackGround/background/bg27.png'),
-  require('./assets/MenuBackGround/background/bg28.png'),
-  require('./assets/MenuBackGround/background/bg29.png'),
-  require('./assets/MenuBackGround/background/bg30.png'),
-  require('./assets/MenuBackGround/background/bg31.png'),
-  require('./assets/MenuBackGround/background/bg32.png'),
-  require('./assets/MenuBackGround/background/bg33.png'),
-  require('./assets/MenuBackGround/background/bg34.png'),
-  require('./assets/MenuBackGround/background/bg35.png'),
-  require('./assets/MenuBackGround/background/bg36.png'),
-  require('./assets/MenuBackGround/background/bg37.png')
-];
+import BACKGROUND_IMAGES from './backgroundImages';
+
 
 const CHARACTERS = [
   { id: 1, name: 'Cow', image: require('./assets/characters/cow head.png') },
@@ -134,7 +95,7 @@ const getDisplayName = (user) => {
   return user.displayName || user.name || user.email.split("@")[0] || "Unknown User";
 };
 
-const encodeEmail = (email) => email.replace(/\./g, ',');
+
 
 const getNameFromFirestore = async (user) => {
   try {
@@ -181,7 +142,6 @@ const CharacterChoosing = () => {
       try {
         const me = authentication.currentUser;
         if (me?.email) {
-          const encodeEmail = (email) => email.replace(/\./g, ',');
           const snap = await getDoc(doc(firestore, 'Users', encodeEmail(me.email)));
           if (snap.exists()) {
             const data = snap.data();
@@ -190,7 +150,7 @@ const CharacterChoosing = () => {
             if (Array.isArray(data?.titles)) setTitles(data.titles);
           }
         }
-      } catch {}
+      } catch (err) { console.error('Failed to load user progress:', err); }
     };
     loadProgress();
     // Clean up listeners when component unmounts
@@ -308,6 +268,24 @@ const CharacterChoosing = () => {
       // Fetch name from Realtime Database
       const name = await getNameFromFirestore(user);
 
+      // Check for existing rooms created by this player and clean them up
+      const existingRoomsSnap = await get(ref(database, 'gameRooms'));
+      if (existingRoomsSnap.exists()) {
+        const rooms = existingRoomsSnap.val();
+        for (const [roomId, roomData] of Object.entries(rooms)) {
+          if (roomData?.player1?.id === user.uid) {
+            // If room is still waiting (no opponent), remove it
+            if (roomData.status === 'waiting') {
+              await remove(ref(database, `gameRooms/${roomId}`));
+            } else if (roomData.status === 'playing') {
+              // Player already in an active game
+              Alert.alert('Error', 'You already have an active game. Finish it first.');
+              return;
+            }
+          }
+        }
+      }
+
       // Create a new game room
       const gameRoomRef = push(ref(database, 'gameRooms'));
       const gameRoomId = gameRoomRef.key;
@@ -340,7 +318,7 @@ const CharacterChoosing = () => {
           setOpponent(data.player2);
           setIsWaiting(false);
           // Navigate to game screen when opponent joins
-          navigation.navigate('Game', { 
+          navigation.navigate('Game', {
             gameRoomId,
             playerNumber: 1,
             character: selectedCharacter,
@@ -374,11 +352,11 @@ const CharacterChoosing = () => {
       }
 
       const gameRoomRef = ref(database, `gameRooms/${roomId}`);
-      
+
       // Check if room exists and has space
       const snapshot = await get(gameRoomRef);
       const data = snapshot.val();
-      
+
       if (!data) {
         Alert.alert('Error', 'Game room not found');
         return;
@@ -396,10 +374,12 @@ const CharacterChoosing = () => {
       }
 
       // Join the game room
+      const joinerName = await getNameFromFirestore(user);
       await update(gameRoomRef, {
         player2: {
           id: user.uid,
           email: user.email,
+          name: joinerName,
           character: selectedCharacter,
           position: { x: 500, y: 100 },
           ready: true
@@ -411,7 +391,7 @@ const CharacterChoosing = () => {
       setOpponent(data.player1);
 
       // Navigate to game screen
-      navigation.navigate('Game', { 
+      navigation.navigate('Game', {
         gameRoomId: roomId,
         playerNumber: 2,
         character: selectedCharacter,
@@ -478,7 +458,7 @@ const CharacterChoosing = () => {
       setTigerImageSource(tigerBonusFrames[bonusFrame]);
       interval = setInterval(() => {
         elapsed += 150;
-         bonusFrame++;
+        bonusFrame++;
         if (elapsed >= 600 || bonusFrame >= tigerBonusFrames.length) { // Loop ends after 4 frames
           clearInterval(interval);
           setTigerPhase(5); // Go back to loopIdle
@@ -504,7 +484,7 @@ const CharacterChoosing = () => {
     // Animation phases as described
     if (cowPhase === 0) {
       // cow1-cow5, 500ms total, equal delta
-      let frames = [0,1,2,3,4];
+      let frames = [0, 1, 2, 3, 4];
       let delta = 500 / frames.length;
       let i = 0;
       function next() {
@@ -531,7 +511,7 @@ const CharacterChoosing = () => {
       timeout = setTimeout(() => setCowPhase(5), 400);
     } else if (cowPhase === 5) {
       // cow10-cow16, 500ms total, equal delta
-      let frames = [9,10,11,12,13,14,15];
+      let frames = [9, 10, 11, 12, 13, 14, 15];
       let delta = 500 / frames.length;
       let i = 0;
       function next() {
@@ -546,7 +526,7 @@ const CharacterChoosing = () => {
       next();
     } else if (cowPhase === 6) {
       // cow17-cow18 alternate every 200ms for 5s
-      let frames = [16,17];
+      let frames = [16, 17];
       let elapsed = 0;
       let i = 0;
       function alternate() {
@@ -562,7 +542,7 @@ const CharacterChoosing = () => {
       alternate();
     } else if (cowPhase === 7) {
       // cow16-cow22, 1s total, equal delta
-      let frames = [15,18,19,20,21];
+      let frames = [15, 18, 19, 20, 21];
       let delta = 1000 / frames.length;
       let i = 0;
       function next() {
@@ -600,10 +580,9 @@ const CharacterChoosing = () => {
     try {
       const me = authentication.currentUser;
       if (!me?.email) return;
-      const encodeEmail = (email) => email.replace(/\./g, ',');
       await updateDoc(doc(firestore, 'Users', encodeEmail(me.email)), { selectedTitle: title });
       setSelectedTitle(title);
-    } catch {}
+    } catch (err) { console.error('Failed to update title:', err); }
   };
 
   return (
@@ -618,31 +597,32 @@ const CharacterChoosing = () => {
       <Image source={BACKGROUND_IMAGES[currentIndex]} style={styles.backgroundImage} />
       <View style={styles.contentContainer}>
         <Text style={styles.title}>Choose Your Character</Text>
-        
+
         <View style={styles.charactersContainer}>
           {CHARACTERS.map((character) => {
             const isLocked = unlocked.length > 0 && !unlocked.includes(character.name);
             return (
-            <TouchableOpacity
-              key={character.id}
-              style={[
-                styles.characterButton,
-                selectedCharacter?.id === character.id && styles.selectedCharacter
-              ]}
-              onPress={() => {
-                if (!isLocked) {
-                  soundManager.playClick();
-                  handleCharacterSelect(character);
-                }
-              }}
-              disabled={isLocked}
-            >
-              <Image source={character.image} style={styles.characterImage} />
-              <Text style={styles.characterName}>
-                {character.name}{isLocked ? ' (Locked)' : ''}
-              </Text>
-            </TouchableOpacity>
-          );})}
+              <TouchableOpacity
+                key={character.id}
+                style={[
+                  styles.characterButton,
+                  selectedCharacter?.id === character.id && styles.selectedCharacter
+                ]}
+                onPress={() => {
+                  if (!isLocked) {
+                    soundManager.playClick();
+                    handleCharacterSelect(character);
+                  }
+                }}
+                disabled={isLocked}
+              >
+                <Image source={character.image} style={styles.characterImage} />
+                <Text style={styles.characterName}>
+                  {character.name}{isLocked ? ' (Locked)' : ''}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Chameleon Animation Render */}
@@ -700,38 +680,38 @@ const CharacterChoosing = () => {
             {selectedTitle && (
               <Text style={styles.titleDisplayText}>Current Title: {selectedTitle}</Text>
             )}
-            
+
             {/* Title Selection - Always show, even if no titles earned yet */}
             <View style={styles.titleSectionContainer}>
               <Text style={styles.titleSectionHeader}>Choose Your Title:</Text>
               {titles.length > 0 ? (
                 <View style={styles.titleButtonsContainer}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={() => {
                       soundManager.playClick();
                       handleSelectTitle(null);
-                    }} 
+                    }}
                     style={[styles.titleButton, !selectedTitle && styles.titleButtonSelected]}
                   >
                     <Text style={[styles.titleButtonText, !selectedTitle && styles.titleButtonTextSelected]}>None</Text>
                   </TouchableOpacity>
                   {titles.map(t => (
                     <View key={t} style={{ alignItems: 'center', margin: 4 }}>
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         onPress={() => {
                           soundManager.playClick();
                           handleSelectTitle(t);
-                        }} 
+                        }}
                         style={[styles.titleButton, selectedTitle === t && styles.titleButtonSelected]}
                       >
                         <Text style={[styles.titleButtonText, selectedTitle === t && styles.titleButtonTextSelected]}>{t}</Text>
                       </TouchableOpacity>
                       <Text style={styles.titleHintText}>
                         {t === 'Obvious Liar' ? 'Have age >100 or <1.5 years' :
-                         t === 'Did the Impossible' ? 'Win vs someone ≥200 years older' :
-                         t === 'Spammer' ? 'Win using only 1 move type' :
-                         t === 'Winner' ? 'Win rate ≥ 60%' :
-                         t === 'Master' ? 'Unlock all achievements' : ''}
+                          t === 'Did the Impossible' ? 'Win vs someone ≥200 years older' :
+                            t === 'Spammer' ? 'Win using only 1 move type' :
+                              t === 'Winner' ? 'Win rate ≥ 60%' :
+                                t === 'Master' ? 'Unlock all achievements' : ''}
                       </Text>
                     </View>
                   ))}
@@ -759,16 +739,16 @@ const CharacterChoosing = () => {
               <Text style={styles.roomsTitle}>Open Game Rooms</Text>
               {openRooms.length === 0 && <Text>No open rooms</Text>}
               {openRooms.map(room => (
-            <TouchableOpacity
+                <TouchableOpacity
                   key={room.id}
                   style={styles.roomItem}
                   onPress={() => {
                     soundManager.playClick();
                     joinGameRoom(room.id);
                   }}
-            >
+                >
                   <Text style={styles.roomName}>{room.name}</Text>
-            </TouchableOpacity>
+                </TouchableOpacity>
               ))}
             </View>
           </View>

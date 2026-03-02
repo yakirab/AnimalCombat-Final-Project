@@ -26,10 +26,10 @@ class SoundManager {
 
   async initialize() {
     if (this.isInitialized) return;
-    
+
     try {
       // console.log('Initializing SoundManager..., Platform:', Platform.OS);
-      
+
       if (this.isWeb) {
         // Web-specific initialization using HTML5 Audio
         // console.log('Using HTML5 Audio for web...');
@@ -90,16 +90,16 @@ class SoundManager {
         audio.preload = 'metadata';
         audio.src = await resolveWebUri(src);
         audio.muted = false;
-        
+
         // Add error handling
         audio.addEventListener('error', (e) => {
           // Keep silent to avoid spam in production
         });
-        
+
         audio.addEventListener('canplaythrough', () => {
           // console.log(`BG Music loaded successfully: ${name}`);
         });
-        
+
         this.backgroundTracks.push({ sound: audio });
         console.log(`Loading BG music: ${name} from ${src}`);
       } catch (error) {
@@ -117,16 +117,16 @@ class SoundManager {
         const resolved = await resolveWebUri(src);
         audio.src = resolved;
         audio.muted = false;
-        
+
         // Add error handling
         audio.addEventListener('error', (e) => {
           // Keep silent to avoid spam in production
         });
-        
+
         audio.addEventListener('canplaythrough', () => {
           // console.log(`SFX loaded successfully: ${name}`);
         });
-        
+
         this.htmlAudioElements[name] = audio;
         // Store source and initialize pool for polyphony
         this.webSfxSources[name] = resolved;
@@ -167,7 +167,7 @@ class SoundManager {
       const bg1 = await ExpoAudio.Sound.createAsync(require('./assets/Sounds/BG/background.mp3'));
       const bg2 = await ExpoAudio.Sound.createAsync(require('./assets/Sounds/BG/background2.mp3'));
       const fighting = await ExpoAudio.Sound.createAsync(require('./assets/Sounds/BG/Fighting.mp3'));
-      
+
       this.backgroundTracks = [bg1, bg2, fighting];
       console.log('Background music loaded successfully');
     } catch (bgError) {
@@ -209,7 +209,7 @@ class SoundManager {
   setSFXVolume(volume) {
     this.sfxVolume = Math.max(0, Math.min(1, volume));
     // console.log(`Setting SFX volume to: ${this.sfxVolume}`);
-    
+
     if (this.isWeb) {
       // Update HTML Audio elements volume
       Object.values(this.htmlAudioElements).forEach(audio => {
@@ -229,7 +229,7 @@ class SoundManager {
   setBGMusicVolume(volume) {
     this.bgMusicVolume = Math.max(0, Math.min(1, volume));
     // console.log(`Setting BG Music volume to: ${this.bgMusicVolume}`);
-    
+
     if (this.isWeb) {
       // Update HTML Audio background music volume
       if (this.backgroundMusic) {
@@ -254,8 +254,8 @@ class SoundManager {
       if (!this.isInitialized) {
         await this.initialize();
       }
-    } catch {}
-    
+    } catch { }
+
     if (this.isMuted) {
       // If muted, still set up the music but with 0 volume
       this.stopBackgroundMusic();
@@ -275,7 +275,7 @@ class SoundManager {
 
     try {
       // console.log(`Playing background music, inGame: ${inGame}`);
-      
+
       // Stop current background music
       if (this.backgroundMusic) {
         if (this.isWeb) {
@@ -290,28 +290,28 @@ class SoundManager {
         // Play fighting music in game
         if (this.backgroundTracks[2]) {
           this.backgroundMusic = this.backgroundTracks[2].sound;
-          
-                if (this.isWeb) {
-        this.backgroundMusic.loop = true;
-        this.backgroundMusic.volume = this.bgMusicVolume;
-        // Use a separate play call for background music to avoid SFX interference
-        const playPromise = this.backgroundMusic.play();
-        if (playPromise) {
-          playPromise.catch(error => {
-            // Retry once if autoplay blocked
-            setTimeout(() => {
-              if (this.backgroundMusic && this.backgroundMusic.paused) {
-                this.backgroundMusic.play().catch(() => {});
-              }
-            }, 100);
-          });
-        }
-      } else {
-        await this.backgroundMusic.setIsLoopingAsync(true);
-        await this.backgroundMusic.setVolumeAsync(this.bgMusicVolume);
-        await this.backgroundMusic.playAsync();
-      }
-           // console.log('Fighting music started');
+
+          if (this.isWeb) {
+            this.backgroundMusic.loop = true;
+            this.backgroundMusic.volume = this.bgMusicVolume;
+            // Use a separate play call for background music to avoid SFX interference
+            const playPromise = this.backgroundMusic.play();
+            if (playPromise) {
+              playPromise.catch(error => {
+                // Retry once if autoplay blocked
+                setTimeout(() => {
+                  if (this.backgroundMusic && this.backgroundMusic.paused) {
+                    this.backgroundMusic.play().catch(() => { });
+                  }
+                }, 100);
+              });
+            }
+          } else {
+            await this.backgroundMusic.setIsLoopingAsync(true);
+            await this.backgroundMusic.setVolumeAsync(this.bgMusicVolume);
+            await this.backgroundMusic.playAsync();
+          }
+          // console.log('Fighting music started');
         }
       } else {
         // Play menu music (alternating background.mp3 and background2.mp3)
@@ -335,12 +335,12 @@ class SoundManager {
     try {
       console.log(`Playing menu music track: ${this.currentBgTrack}`);
       this.backgroundMusic = this.backgroundTracks[this.currentBgTrack].sound;
-      
+
       if (this.isWeb) {
         console.log('Playing menu music on web, volume:', this.bgMusicVolume);
         this.backgroundMusic.volume = this.bgMusicVolume;
         this.backgroundMusic.currentTime = 0;
-        
+
         // Use a separate play call for menu music
         const playPromise = this.backgroundMusic.play();
         if (playPromise) {
@@ -358,7 +358,7 @@ class SoundManager {
             }, 100);
           });
         }
-        
+
         // Set up listener for when track ends
         this.backgroundMusic.onended = () => {
           // Switch to the other track
@@ -368,7 +368,7 @@ class SoundManager {
       } else {
         await this.backgroundMusic.setVolumeAsync(this.bgMusicVolume);
         await this.backgroundMusic.playAsync();
-        
+
         // Set up listener for when track ends
         this.backgroundMusic.setOnPlaybackStatusUpdate((status) => {
           if (status.didJustFinish) {
@@ -378,7 +378,7 @@ class SoundManager {
           }
         });
       }
-       // console.log('Menu music started');
+      // console.log('Menu music started');
     } catch (error) {
       console.error('Failed to play menu music:', error);
     }
@@ -401,10 +401,10 @@ class SoundManager {
 
   async playSFX(soundName) {
     if (this.isMuted) return; // Don't play if muted
-    
+
     try {
       if (!this.isInitialized) {
-        try { await this.initialize(); } catch {}
+        try { await this.initialize(); } catch { }
       }
 
       // On web, resume audio context if suspended (autoplay blocked)
@@ -413,7 +413,7 @@ class SoundManager {
       }
 
       console.log(`Playing SFX: ${soundName}, isWeb: ${this.isWeb}, isMuted: ${this.isMuted}`);
-      
+
       if (this.isWeb) {
         // Don't unlock during SFX playback to avoid interfering with background music
         // Use a pooled instance for overlapping playback
@@ -438,13 +438,13 @@ class SoundManager {
             this.webSfxPools[soundName] = pool;
           }
         }
-        
+
         console.log(`SFX pool for ${soundName}: ${pool?.length || 0} instances, found free instance: ${!!instance}`);
         if (instance) {
           instance.volume = this.sfxVolume;
-          try { 
-            instance.currentTime = 0; 
-          } catch {}
+          try {
+            instance.currentTime = 0;
+          } catch { }
           // Play without interfering with other audio
           const playPromise = instance.play();
           if (playPromise) {
@@ -465,7 +465,7 @@ class SoundManager {
           try {
             const status = await s.getStatusAsync();
             if (!status.isPlaying) { chosen = s; break; }
-          } catch {}
+          } catch { }
         }
         if (!chosen && pool.length < this.poolMax) {
           try {
@@ -475,7 +475,7 @@ class SoundManager {
             pool.push(sound);
             this.mobileSfxPools[soundName] = pool;
             chosen = sound;
-          } catch {}
+          } catch { }
         }
         if (chosen) {
           await chosen.setVolumeAsync(this.sfxVolume);
@@ -496,14 +496,14 @@ class SoundManager {
   playScratch() { this.playSFX('scratch'); }
   playSmash() { this.playSFX('smash'); }
   playInvisible() { this.playSFX('invisible'); }
-  
+
   // Walk sound management for continuous looping
-  playWalk() { 
+  playWalk() {
     if (!this.walkingSound || this.walkingSound.paused || this.walkingSound.ended) {
       this.startWalkLoop();
     }
   }
-  
+
   startWalkLoop() {
     if (this.isWeb) {
       // Find a free walk sound instance or create one
@@ -516,7 +516,7 @@ class SoundManager {
             this.walkingSound.loop = true;
             this.walkingSound.volume = this.sfxVolume;
             this.walkingSound.currentTime = 0;
-            this.walkingSound.play().catch(() => {});
+            this.walkingSound.play().catch(() => { });
           }
         });
       } else {
@@ -524,7 +524,7 @@ class SoundManager {
         this.walkingSound.loop = true;
         this.walkingSound.volume = this.sfxVolume;
         this.walkingSound.currentTime = 0;
-        this.walkingSound.play().catch(() => {});
+        this.walkingSound.play().catch(() => { });
       }
     } else {
       // Mobile: use expo-av
@@ -537,7 +537,7 @@ class SoundManager {
       }
     }
   }
-  
+
   stopWalk() {
     if (this.walkingSound) {
       if (this.isWeb) {
@@ -551,11 +551,11 @@ class SoundManager {
       this.walkingSound = null;
     }
   }
-  
+
   // Mute control
   setMuted(muted) {
     this.isMuted = muted;
-    
+
     // Mute/unmute background music
     if (this.backgroundMusic) {
       if (this.isWeb) {
@@ -564,7 +564,7 @@ class SoundManager {
         this.backgroundMusic.setVolumeAsync(muted ? 0 : this.bgMusicVolume);
       }
     }
-    
+
     // Mute/unmute all SFX pools
     if (this.isWeb) {
       Object.values(this.webSfxPools).forEach(pool => {
@@ -579,7 +579,7 @@ class SoundManager {
         });
       });
     }
-    
+
     // Mute/unmute walking sound
     if (this.walkingSound) {
       if (this.isWeb) {
@@ -589,12 +589,12 @@ class SoundManager {
       }
     }
   }
-  
+
   toggleMute() {
     this.setMuted(!this.isMuted);
     return this.isMuted;
   }
-  
+
   getMuted() {
     return this.isMuted;
   }
@@ -613,14 +613,14 @@ class SoundManager {
           el.loop = false;
           const playPromise = el.play();
           if (playPromise) {
-            await playPromise.catch(() => {});
+            await playPromise.catch(() => { });
           }
           el.pause();
           el.currentTime = 0;
           el.muted = prevMuted;
           el.volume = prevVol;
           el.loop = prevLoop;
-        } catch {}
+        } catch { }
       };
 
       // Unlock background music tracks separately
@@ -629,29 +629,26 @@ class SoundManager {
           if (t?.sound) await unlockElement(t.sound);
         }
       }
-      
+
       // Unlock SFX elements separately
       for (const el of Object.values(this.htmlAudioElements)) {
         await unlockElement(el);
       }
-      
+
       // Unlock all pooled SFX elements
       for (const pool of Object.values(this.webSfxPools)) {
         for (const el of pool) {
           await unlockElement(el);
         }
       }
-    } catch {}
+    } catch { }
   }
 
   // Output device selection (web only)
   async listOutputDevices() {
     if (!this.isWeb || !navigator?.mediaDevices?.enumerateDevices) return [];
     try {
-      // Request audio permission so labels are populated
-      if (navigator.mediaDevices.getUserMedia) {
-        try { await navigator.mediaDevices.getUserMedia({ audio: true }); } catch {}
-      }
+      // Enumerate output devices without requesting mic permission
       const devices = await navigator.mediaDevices.enumerateDevices();
       return devices.filter(d => d.kind === 'audiooutput');
     } catch {
@@ -665,7 +662,7 @@ class SoundManager {
 
     const applySink = (el) => {
       if (el && typeof el.setSinkId === 'function') {
-        try { el.setSinkId(deviceId || ''); } catch {}
+        try { el.setSinkId(deviceId || ''); } catch { }
       }
     };
 
