@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Dimensions, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Dimensions, Image, ActivityIndicator, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { collection, onSnapshot, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { firestore } from './Config';
@@ -79,21 +79,25 @@ const AdminReports = () => {
     }, []);
 
     const handleDeleteReport = useCallback(async (reportId) => {
-        Alert.alert('Delete Report', 'Are you sure you want to delete this report?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Delete',
-                style: 'destructive',
-                onPress: async () => {
-                    try {
-                        await deleteDoc(doc(firestore, 'Reports', reportId));
-                        setReports((prev) => prev.filter((r) => r.id !== reportId));
-                    } catch (err) {
-                        showActionError('Delete report', err);
-                    }
-                }
+        const doDelete = async () => {
+            try {
+                await deleteDoc(doc(firestore, 'Reports', reportId));
+                setReports((prev) => prev.filter((r) => r.id !== reportId));
+            } catch (err) {
+                showActionError('Delete report', err);
             }
-        ]);
+        };
+
+        if (Platform.OS === 'web') {
+            if (window.confirm('Are you sure you want to delete this report?')) {
+                await doDelete();
+            }
+        } else {
+            Alert.alert('Delete Report', 'Are you sure you want to delete this report?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete', style: 'destructive', onPress: doDelete }
+            ]);
+        }
     }, [showActionError]);
 
     const handleMarkDone = useCallback(async (reportId) => {
@@ -106,25 +110,29 @@ const AdminReports = () => {
         }
     }, [showActionError]);
 
-    const handleDeleteAllForPlayer = useCallback((playerReports, playerLabel) => {
+    const handleDeleteAllForPlayer = useCallback(async (playerReports, playerLabel) => {
         if (!playerReports.length) return;
-        Alert.alert('Delete All Reports', `Delete all reports for ${playerLabel}?`, [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Delete All',
-                style: 'destructive',
-                onPress: async () => {
-                    try {
-                        const batch = writeBatch(firestore);
-                        playerReports.forEach((r) => batch.delete(doc(firestore, 'Reports', r.id)));
-                        await batch.commit();
-                        setReports((prev) => prev.filter((r) => !playerReports.some((pr) => pr.id === r.id)));
-                    } catch (err) {
-                        showActionError('Delete all player reports', err);
-                    }
-                }
+        const doDeleteAll = async () => {
+            try {
+                const batch = writeBatch(firestore);
+                playerReports.forEach((r) => batch.delete(doc(firestore, 'Reports', r.id)));
+                await batch.commit();
+                setReports((prev) => prev.filter((r) => !playerReports.some((pr) => pr.id === r.id)));
+            } catch (err) {
+                showActionError('Delete all player reports', err);
             }
-        ]);
+        };
+
+        if (Platform.OS === 'web') {
+            if (window.confirm(`Delete all reports for ${playerLabel}?`)) {
+                await doDeleteAll();
+            }
+        } else {
+            Alert.alert('Delete All Reports', `Delete all reports for ${playerLabel}?`, [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete All', style: 'destructive', onPress: doDeleteAll }
+            ]);
+        }
     }, [showActionError]);
 
     const handleMarkAllDoneForPlayer = useCallback(async (playerReports) => {
