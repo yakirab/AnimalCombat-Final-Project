@@ -57,8 +57,10 @@ const GameSession = () => {
       const current = authentication.currentUser;
       const email = current?.email || '';
       const encoded = encodeEmail(email);
-      const isAdminEmail = ADMIN_EMAILS.includes(email);
-      setIsAdmin(isAdminEmail);
+      const normalizedEmail = email.toLowerCase();
+      const isAdminEmail = ADMIN_EMAILS.some((adminEmail) => adminEmail.toLowerCase() === normalizedEmail);
+      let adminByDoc = false;
+      let adminByUserFlag = false;
 
       // Persist admin to Admins collection for visibility
       if (isAdminEmail && encoded) {
@@ -71,17 +73,26 @@ const GameSession = () => {
 
       if (email) {
         try {
-          const snap = await getDoc(doc(firestore, 'Users', encoded));
-          if (snap.exists()) {
-            const data = snap.data();
+          const [userSnap, adminSnap] = await Promise.all([
+            getDoc(doc(firestore, 'Users', encoded)),
+            getDoc(doc(firestore, 'Admins', encoded)),
+          ]);
+
+          if (userSnap.exists()) {
+            const data = userSnap.data();
+            adminByUserFlag = !!(data?.isAdmin || data?.role === 'admin');
             const bannedValue = data?.bannedUntil;
             const bannedMs = bannedValue?.toMillis ? bannedValue.toMillis() : bannedValue;
             if (bannedMs) setBannedUntil(bannedMs);
           }
+
+          adminByDoc = adminSnap.exists();
         } catch (err) {
           console.warn('Failed to fetch user doc', err);
         }
       }
+
+      setIsAdmin(isAdminEmail || adminByDoc || adminByUserFlag);
     };
     checkUser();
   }, []);
@@ -360,7 +371,7 @@ const GameSession = () => {
           onPress={handleReportPlayer}
           activeOpacity={0.8}
         >
-          <Text style={dynamicStyles.buttonText}>Report Player</Text>
+          <Text style={dynamicStyles.buttonText}>{isAdmin ? 'Reports' : 'Report Player'}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={dynamicStyles.logoutButton}

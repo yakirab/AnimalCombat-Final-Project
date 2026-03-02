@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Alert, Dimensions, Image, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { collection, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { firestore, authentication } from './Config';
 import { useBackground } from './BackgroundContext';
 import soundManager from './SoundManager';
 import BACKGROUND_IMAGES from './backgroundImages';
+import { encodeEmail } from './utils';
 
 const { width, height } = Dimensions.get('window');
 const NORMAL_WIDTH = 1929;
@@ -13,6 +14,7 @@ const NORMAL_HEIGHT = 2000;
 const SCALE_X = width / NORMAL_WIDTH;
 const SCALE_Y = height / NORMAL_HEIGHT;
 const SCALE = Math.min(SCALE_X, SCALE_Y) * 1.5;
+const ADMIN_EMAILS = ['yakir.abramovich@gmail.com'];
 
 const ReportPlayer = () => {
     const { currentIndex } = useBackground();
@@ -34,8 +36,25 @@ const ReportPlayer = () => {
     useEffect(() => {
         const loadPlayers = async () => {
             try {
+                const current = authentication.currentUser;
+                const currentEmail = current?.email || '';
+                const encoded = encodeEmail(currentEmail);
+                const normalized = currentEmail.toLowerCase();
+                const isAdminEmail = ADMIN_EMAILS.some((adminEmail) => adminEmail.toLowerCase() === normalized);
+                const [userSnap, adminSnap] = await Promise.all([
+                    encoded ? getDoc(doc(firestore, 'Users', encoded)) : Promise.resolve(null),
+                    encoded ? getDoc(doc(firestore, 'Admins', encoded)) : Promise.resolve(null),
+                ]);
+                const adminByDoc = !!adminSnap?.exists?.();
+                const adminByUserFlag = !!(userSnap?.exists?.() && (userSnap.data()?.isAdmin || userSnap.data()?.role === 'admin'));
+                const adminDetected = isAdminEmail || adminByDoc || adminByUserFlag;
+
+                if (adminDetected) {
+                    navigation.replace('AdminReports');
+                    return;
+                }
+
                 const snap = await getDocs(collection(firestore, 'Users'));
-                const currentEmail = authentication.currentUser?.email || '';
                 const players = [];
                 snap.forEach(doc => {
                     const data = doc.data();
