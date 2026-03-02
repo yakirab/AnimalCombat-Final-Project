@@ -5,7 +5,7 @@ import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { firestore } from './Config';
 import { useBackground } from './BackgroundContext';
 import soundManager from './SoundManager';
-import { BACKGROUND_IMAGES } from './backgroundImages';
+import BACKGROUND_IMAGES from './backgroundImages';
 
 const { width, height } = Dimensions.get('window');
 const NORMAL_WIDTH = 1929;

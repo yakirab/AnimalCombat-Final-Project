@@ -271,7 +271,7 @@ const Register = ({ navigation }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [name, email, password, confirmPassword, birthDate, nameError, emailError, passwordError, confirmPasswordError, birthDateError, validateName, validateEmail, validatePassword, validateBirthDate, navigation]);
+  }, [name, email, password, confirmPassword, birthDate, emailPattern, passwordPattern, datePattern, navigation]);
 
   // Optimized input handlers
   const handleNameChange = useCallback((text) => {
