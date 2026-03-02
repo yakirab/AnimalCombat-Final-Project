@@ -59,7 +59,6 @@ const GameSession = () => {
       const encoded = encodeEmail(email);
       const normalizedEmail = email.toLowerCase();
       const isAdminEmail = ADMIN_EMAILS.some((adminEmail) => adminEmail.toLowerCase() === normalizedEmail);
-      let adminByDoc = false;
       let adminByUserFlag = false;
 
       // Persist admin to Admins collection for visibility
@@ -73,10 +72,7 @@ const GameSession = () => {
 
       if (email) {
         try {
-          const [userSnap, adminSnap] = await Promise.all([
-            getDoc(doc(firestore, 'Users', encoded)),
-            getDoc(doc(firestore, 'Admins', encoded)),
-          ]);
+          const userSnap = await getDoc(doc(firestore, 'Users', encoded));
 
           if (userSnap.exists()) {
             const data = userSnap.data();
@@ -85,14 +81,12 @@ const GameSession = () => {
             const bannedMs = bannedValue?.toMillis ? bannedValue.toMillis() : bannedValue;
             if (bannedMs) setBannedUntil(bannedMs);
           }
-
-          adminByDoc = adminSnap.exists();
         } catch (err) {
           console.warn('Failed to fetch user doc', err);
         }
       }
 
-      setIsAdmin(isAdminEmail || adminByDoc || adminByUserFlag);
+      setIsAdmin(isAdminEmail || adminByUserFlag);
     };
     checkUser();
   }, []);

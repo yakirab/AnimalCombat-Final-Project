@@ -44,13 +44,9 @@ const ReportPlayer = () => {
                 const currentEmail = (current?.email || '').toLowerCase();
                 const encoded = encodeEmail(currentEmail);
                 const isAdminEmail = ADMIN_EMAILS.some((adminEmail) => adminEmail.toLowerCase() === currentEmail);
-                const [userSnap, adminSnap] = await Promise.all([
-                    encoded ? getDoc(doc(firestore, 'Users', encoded)) : Promise.resolve(null),
-                    encoded ? getDoc(doc(firestore, 'Admins', encoded)) : Promise.resolve(null),
-                ]);
-                const adminByDoc = !!adminSnap?.exists?.();
+                const userSnap = encoded ? await getDoc(doc(firestore, 'Users', encoded)) : null;
                 const adminByUserFlag = !!(userSnap?.exists?.() && (userSnap.data()?.isAdmin || userSnap.data()?.role === 'admin'));
-                const adminDetected = isAdminEmail || adminByDoc || adminByUserFlag;
+                const adminDetected = isAdminEmail || adminByUserFlag;
 
                 if (adminDetected) {
                     navigation.replace('AdminReports');
