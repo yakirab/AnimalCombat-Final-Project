@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, TextInput, TouchableOpacity, Image, Alert, Dime
 import CustomButton from './CustomButton';
 import { authentication } from './Config';
 import soundManager from './SoundManager';
-import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { createUserWithEmailAndPassword, deleteUser, signOut } from 'firebase/auth';
 import { useBackground } from './BackgroundContext';
 import { firestore } from './Config'; // Your initialized Firestore instance
 import { encodeEmail } from './utils';
@@ -201,18 +201,19 @@ const Register = ({ navigation }) => {
       }
 
       try {
-        // Ensure unique username (name)
+        // Create user with email and password first (required for signed-in Firestore rules)
+        const userCredential = await createUserWithEmailAndPassword(authentication, cleanEmail, password);
+        const user = userCredential.user;
+
+        // Ensure unique username (name) after auth is established
         const q = query(collection(firestore, 'Users'), where('name', '==', cleanName));
         const qSnap = await getDocs(q);
         if (!qSnap.empty) {
+          await deleteUser(user);
           Alert.alert('Username Taken', 'This username is already in use. Please choose another name.');
           setIsLoading(false);
           return;
         }
-
-        // Create user with email and password
-        const userCredential = await createUserWithEmailAndPassword(authentication, cleanEmail, password);
-        const user = userCredential.user;
 
         // Parse birth date
         const [year, month, day] = birthDate.split('-');
