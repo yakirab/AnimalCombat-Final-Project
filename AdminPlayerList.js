@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, 
 import { useNavigation } from '@react-navigation/native';
 import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { firestore } from './Config';
+import { encodeEmail } from './utils';
 
 const { width, height } = Dimensions.get('window');
 const NORMAL_WIDTH = 1929;
@@ -10,7 +11,7 @@ const NORMAL_HEIGHT = 2000;
 const SCALE_X = width / NORMAL_WIDTH;
 const SCALE_Y = height / NORMAL_HEIGHT;
 const SCALE = Math.min(SCALE_X, SCALE_Y);
-const encodeEmail = (email) => (email || '').replace(/\./g, ',');
+
 
 const BAN_OPTIONS = [
   { label: '1h', ms: 60 * 60 * 1000 },

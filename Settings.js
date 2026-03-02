@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity, TextInput, Image, Platform, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, TextInput, Image, Platform } from 'react-native';
 import { useBackground } from './BackgroundContext';
 import { authentication, firestore } from './Config';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import soundManager from './SoundManager';
+import { encodeEmail } from './utils';
+import BACKGROUND_IMAGES from './backgroundImages';
 
 const { width, height } = Dimensions.get('window');
 const NORMAL_WIDTH = 1929;
@@ -22,49 +24,9 @@ const Settings = ({ navigation }) => {
   const [outputDevices, setOutputDevices] = useState([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
 
-  const images = useMemo(() => [
-    require('./assets/MenuBackGround/background/bg1.png'),
-    require('./assets/MenuBackGround/background/bg2.png'),
-    require('./assets/MenuBackGround/background/bg3.png'),
-    require('./assets/MenuBackGround/background/bg4.png'),
-    require('./assets/MenuBackGround/background/bg5.png'),
-    require('./assets/MenuBackGround/background/bg6.png'),
-    require('./assets/MenuBackGround/background/bg7.png'),
-    require('./assets/MenuBackGround/background/bg8.png'),
-    require('./assets/MenuBackGround/background/bg9.png'),
-    require('./assets/MenuBackGround/background/bg10.png'),
-    require('./assets/MenuBackGround/background/bg11.png'),
-    require('./assets/MenuBackGround/background/bg12.png'),
-    require('./assets/MenuBackGround/background/bg13.png'),
-    require('./assets/MenuBackGround/background/bg132.png'),
-    require('./assets/MenuBackGround/background/bg133.png'),
-    require('./assets/MenuBackGround/background/bg14.png'),
-    require('./assets/MenuBackGround/background/bg15.png'),
-    require('./assets/MenuBackGround/background/bg16.png'),
-    require('./assets/MenuBackGround/background/bg17.png'),
-    require('./assets/MenuBackGround/background/bg18.png'),
-    require('./assets/MenuBackGround/background/bg19.png'),
-    require('./assets/MenuBackGround/background/bg20.png'),
-    require('./assets/MenuBackGround/background/bg21.png'),
-    require('./assets/MenuBackGround/background/bg22.png'),
-    require('./assets/MenuBackGround/background/bg23.png'),
-    require('./assets/MenuBackGround/background/bg24.png'),
-    require('./assets/MenuBackGround/background/bg25.png'),
-    require('./assets/MenuBackGround/background/bg26.png'),
-    require('./assets/MenuBackGround/background/bg27.png'),
-    require('./assets/MenuBackGround/background/bg28.png'),
-    require('./assets/MenuBackGround/background/bg29.png'),
-    require('./assets/MenuBackGround/background/bg30.png'),
-    require('./assets/MenuBackGround/background/bg31.png'),
-    require('./assets/MenuBackGround/background/bg32.png'),
-    require('./assets/MenuBackGround/background/bg33.png'),
-    require('./assets/MenuBackGround/background/bg34.png'),
-    require('./assets/MenuBackGround/background/bg35.png'),
-    require('./assets/MenuBackGround/background/bg36.png'),
-    require('./assets/MenuBackGround/background/bg37.png')
-  ], []);
+  const images = BACKGROUND_IMAGES;
 
-  const encodeEmail = (email) => email.replace(/\./g, ',');
+
 
   const normalizeKey = useCallback((k) => (k || '').toString().trim().toLowerCase().slice(0, 1), []);
 
@@ -100,7 +62,7 @@ const Settings = ({ navigation }) => {
             soundManager.setOutputDevice(data.outputDeviceId);
           }
         }
-      } catch {}
+      } catch (err) { console.error('Failed to load settings:', err); }
     };
     load();
   }, []);
@@ -113,7 +75,7 @@ const Settings = ({ navigation }) => {
           const devices = await soundManager.listOutputDevices();
           setOutputDevices(devices);
         }
-      } catch {}
+      } catch (err) { console.error('Failed to fetch audio devices:', err); }
     };
     fetchDevices();
   }, []);
@@ -123,21 +85,21 @@ const Settings = ({ navigation }) => {
       const me = authentication.currentUser;
       if (!me?.email) return;
       const ref = doc(firestore, 'Users', encodeEmail(me.email));
-      const payload = { 
-        controls, 
+      const payload = {
+        controls,
         sfxVolume: Math.max(0, Math.min(1, sfxVolume)),
         bgMusicVolume: Math.max(0, Math.min(1, bgMusicVolume)),
         outputDeviceId: selectedDeviceId || ''
       };
       await setDoc(ref, payload, { merge: true });
-      
+
       // Update sound manager volumes
       soundManager.setSFXVolume(sfxVolume);
       soundManager.setBGMusicVolume(bgMusicVolume);
       soundManager.setOutputDevice(selectedDeviceId);
-      
+
       navigation.goBack();
-    } catch {}
+    } catch (err) { console.error('Failed to save settings:', err); }
   }, [controls, sfxVolume, bgMusicVolume, selectedDeviceId, navigation]);
 
   const styles = useMemo(() => StyleSheet.create({

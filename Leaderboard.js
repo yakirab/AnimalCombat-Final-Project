@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, 
 import { useNavigation } from '@react-navigation/native';
 import { collection, getDocs } from 'firebase/firestore';
 import { firestore } from './Config';
+import soundManager from './SoundManager';
 
 const { width, height } = Dimensions.get('window');
 const NORMAL_WIDTH = 1929;
@@ -108,7 +109,7 @@ const Leaderboard = () => {
       <View style={styles.headerRow}>
         <TouchableOpacity
           style={styles.backBtn}
-          onPress={() => navigation.goBack()}
+          onPress={() => { soundManager.playClick(); navigation.goBack(); }}
           activeOpacity={0.8}
         >
           <Text style={styles.backText}>Back</Text>

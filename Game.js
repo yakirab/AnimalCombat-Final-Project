@@ -5,8 +5,9 @@ import { Asset } from 'expo-asset';
 
 import { useBackground } from './BackgroundContext';
 
-import { authentication, firebase, database, firestore } from './Config';
+import { authentication, database, firestore } from './Config';
 import { doc, getDoc, updateDoc, setDoc, arrayUnion } from 'firebase/firestore';
+import { encodeEmail } from './utils';
 
 import { useNavigation, useRoute } from '@react-navigation/native';
 import soundManager from './SoundManager';
@@ -41,16 +42,16 @@ const ATTACK_RANGES = {
 function checkAttackRange(attackerX, attackerFacing, targetX, attackType) {
   const range = ATTACK_RANGES[attackType] || ATTACK_RANGES.light;
   const distance = Math.abs(attackerX - targetX);
-  
+
   // Check if target is in front of attacker
   const isInFront = attackerFacing ? targetX > attackerX : targetX < attackerX;
-  
+
   return distance <= range && isInFront;
 }
 
 function calculateDamage(attackerStats, attackType, isBlocking = false) {
   let baseDamage = 0;
-  
+
   if (attackType === 'light') {
     baseDamage = attackerStats.light;
   } else if (attackType === 'heavy') {
@@ -58,12 +59,12 @@ function calculateDamage(attackerStats, attackType, isBlocking = false) {
   } else if (attackType === 'special' && typeof attackerStats.special === 'number') {
     baseDamage = attackerStats.special;
   }
-  
+
   // Blocking fully negates damage
   if (isBlocking) {
     baseDamage = 0;
   }
-  
+
   return baseDamage;
 }
 
@@ -86,26 +87,26 @@ class AnimationStateManager {
     this.states = new Map();
     this.listeners = new Map();
   }
-  
+
   setState(id, newState) {
     const oldState = this.states.get(id);
     this.states.set(id, { ...oldState, ...newState });
-    
+
     // Notify listeners immediately (DOM-like)
     const listener = this.listeners.get(id);
     if (listener) {
       listener(this.states.get(id));
     }
   }
-  
+
   getState(id) {
     return this.states.get(id);
   }
-  
+
   subscribe(id, listener) {
     this.listeners.set(id, listener);
   }
-  
+
   unsubscribe(id) {
     this.listeners.delete(id);
   }
@@ -384,19 +385,19 @@ const Game = () => {
   const route = useRoute();
   const { gameRoomId, playerNumber, character, opponent } = route.params;
   const ALL_CHARACTER_NAMES = ['Cow', 'Tiger', 'Chameleon'];
-  const encodeEmail = (email) => email.replace(/\./g, ',');
-  
+
+
   // Fighting game constants (scaled)
   const FLOOR_Y = height - (100 * SCALE); // Characters stand on this Y position (scaled)
   const LEFT_BORDER = 100 * SCALE;
   const RIGHT_BORDER = width - (400 * SCALE);
-  
+
   // Network optimization refs
   const lastNetworkUpdate = useRef(0);
   const lastSentPosition = useRef({ x: 0, y: 0 });
   const pendingUpdates = useRef({});
   const updateQueue = useRef([]);
-  
+
   const [playerState, setPlayerState] = useState({
     ...CHARACTER_STATS[character.name],
     character: { name: character.name },
@@ -425,7 +426,7 @@ const Game = () => {
     blockCooldownEnd: 0, // When block cooldown ends
     canBlock: true, // Whether player can currently block
   });
-  
+
   // Track pressed keys for simultaneous actions
   const [pressedKeys, setPressedKeys] = useState(new Set());
   const pressedKeysRef = useRef(pressedKeys);
@@ -511,34 +512,34 @@ const Game = () => {
 
   // Refs for accessing latest state in game loop
   const opponentStateRef = useRef(opponentState);
-  useEffect(() => { 
-    opponentStateRef.current = opponentState; 
+  useEffect(() => {
+    opponentStateRef.current = opponentState;
   }, [opponentState]);
 
   // Milk projectiles state for cow special attack
   const [milkProjectiles, setMilkProjectiles] = useState([]);
   const milkProjectilesRef = useRef([]);
   const projectileSyncTimesRef = useRef({});
-  
+
   // Update milk projectiles ref when state changes
-  useEffect(() => { 
-    milkProjectilesRef.current = milkProjectiles; 
+  useEffect(() => {
+    milkProjectilesRef.current = milkProjectiles;
   }, [milkProjectiles]);
 
-  const gameRoomRef = useRef(firebase.database().ref(`gameRooms/${gameRoomId}`));
+  const gameRoomRef = useRef(ref(database, `gameRooms/${gameRoomId}`));
 
   // Optimized Firebase update function with batching, throttling, and error handling
   const batchedFirebaseUpdate = useCallback((updates) => {
     const now = Date.now();
-    
+
     // Add to pending updates
     Object.assign(pendingUpdates.current, updates);
-    
+
     // Throttle network requests
     if (now - lastNetworkUpdate.current < NETWORK_THROTTLE_MS) {
       return;
     }
-    
+
     // Send batched updates with error handling
     if (Object.keys(pendingUpdates.current).length > 0) {
       try {
@@ -566,13 +567,13 @@ const Game = () => {
   const syncAction = useCallback((action, facingRight, isInvisible = false, isDead = false, isFinishHim = false) => {
     const actionKey = playerNumber === 1 ? 'player1/action' : 'player2/action';
     batchedFirebaseUpdate({
-      [actionKey]: { 
-        currentAction: action, 
-        facingRight, 
-        isInvisible, 
-        isDead, 
-        isFinishHim, 
-        timestamp: Date.now() 
+      [actionKey]: {
+        currentAction: action,
+        facingRight,
+        isInvisible,
+        isDead,
+        isFinishHim,
+        timestamp: Date.now()
       }
     });
   }, [playerNumber, batchedFirebaseUpdate]);
@@ -580,21 +581,21 @@ const Game = () => {
   // Apply damage to opponent
   const applyDamageToOpponent = useCallback((damage) => {
     const opponentKey = playerNumber === 1 ? 'player2/hp' : 'player1/hp';
-    
+
     // Get current opponent HP and calculate new HP
     const currentHp = opponentState.hp;
     const newHp = Math.max(0, currentHp - damage);
-    
+
     // Update Firebase immediately with new HP
     const updates = {
       [opponentKey]: newHp
     };
-    
+
     // Send to Firebase immediately (not batched for HP updates)
     gameRoomRef.current.update(updates).catch(error => {
       console.error('Failed to update opponent HP:', error);
     });
-    
+
     // Update local opponent state
     setOpponentState(prev => ({
       ...prev,
@@ -608,18 +609,18 @@ const Game = () => {
   const applyDamageToPlayer = useCallback((damage) => {
     setPlayerState(prev => {
       const newHp = Math.max(0, prev.hp - damage);
-      
+
       // Update Firebase with player's new HP
       const playerKey = playerNumber === 1 ? 'player1/hp' : 'player2/hp';
       const updates = {
         [playerKey]: newHp
       };
-      
+
       // Send to Firebase immediately
       gameRoomRef.current.update(updates).catch(error => {
         console.error('Failed to update player HP:', error);
       });
-      
+
       return {
         ...prev,
         hp: newHp,
@@ -646,10 +647,10 @@ const Game = () => {
       hitStartTime: 0,
       ownerPlayer: playerNumber // Track which player created this projectile
     };
-    
+
     // Add to local state
     setMilkProjectiles(prev => [...prev, newProjectile]);
-    
+
     // Sync to Firebase so opponent can see it
     const projectileKey = `projectiles/${safeId}`;
     gameRoomRef.current.child(projectileKey).set({
@@ -667,33 +668,33 @@ const Game = () => {
     // Check collision with opponent first
     const opponentX = opponentState.x;
     const opponentY = opponentState.y;
-    
+
     if (checkCollision(newX, newY, opponentX, opponentY)) {
       // Collision detected - don't move
       return;
     }
-    
+
     // Keep character within screen bounds
     const boundedX = Math.max(LEFT_BORDER, Math.min(RIGHT_BORDER, newX));
     const boundedY = newY;
-    
+
     const dx = Math.abs(boundedX - lastSentPosition.current.x);
     const dy = Math.abs(boundedY - lastSentPosition.current.y);
-    
+
     // Update local state immediately for responsiveness
     setPlayerState(prev => ({
       ...prev,
       x: boundedX,
       y: boundedY
     }));
-    
+
     // Only send position updates if movement is significant
     if (dx > POSITION_THRESHOLD || dy > POSITION_THRESHOLD) {
       const playerKey = playerNumber === 1 ? 'player1/position' : 'player2/position';
       const updates = {
         [playerKey]: { x: boundedX, y: boundedY }
       };
-      
+
       batchedFirebaseUpdate(updates);
       lastSentPosition.current = { x: boundedX, y: boundedY };
     }
@@ -704,7 +705,7 @@ const Game = () => {
     const initialX = playerNumber === 1 ? 150 : RIGHT_BORDER - 150;
     const initialY = FLOOR_Y;
     const initialFacingRight = playerNumber === 1;
-    
+
     // Update local state
     setPlayerState(prev => ({
       ...prev,
@@ -712,29 +713,29 @@ const Game = () => {
       y: initialY,
       facingRight: initialFacingRight
     }));
-    
+
     // Sync initial position to Firebase
     const playerRef = gameRoomRef.current.child(
       playerNumber === 1 ? 'player1/position' : 'player2/position'
     );
     playerRef.set({ x: initialX, y: initialY });
-    
+
     // Sync initial action to Firebase
     const actionRef = gameRoomRef.current.child(
       playerNumber === 1 ? 'player1/action' : 'player2/action'
     );
-    actionRef.set({ 
+    actionRef.set({
       currentAction: 'idle',
       facingRight: initialFacingRight,
       timestamp: Date.now()
     });
-    
+
     // Sync initial HP to Firebase
     const hpRef = gameRoomRef.current.child(
       playerNumber === 1 ? 'player1/hp' : 'player2/hp'
     );
     hpRef.set(CHARACTER_STATS[character.name].hp);
-    
+
     // Listen for opponent's position updates with real-time optimization
     const opponentRef = gameRoomRef.current.child(
       playerNumber === 1 ? 'player2/position' : 'player1/position'
@@ -788,7 +789,7 @@ const Game = () => {
             soundManager.playInvisible();
           }
         }
-        
+
         setOpponentState(prev => {
           const sameAction =
             prev.currentAction === action.currentAction &&
@@ -870,12 +871,12 @@ const Game = () => {
     projectilesRef.on('child_added', (snapshot) => {
       const projectileData = snapshot.val();
       const projectileId = snapshot.key;
-      
+
       // Only add projectiles created by opponent
       if (projectileData && projectileData.ownerPlayer !== playerNumber) {
         // Use current opponent position for consistent height
         const adjustedY = opponentState.y - (CHARACTER_SIZE * 0.4); // Same offset as player projectiles
-        
+
         const newProjectile = {
           id: projectileId,
           x: projectileData.x,
@@ -889,7 +890,7 @@ const Game = () => {
           ownerPlayer: projectileData.ownerPlayer,
           isEnemyProjectile: true // Mark as enemy projectile
         };
-        
+
         setMilkProjectiles(prev => {
           // Check if projectile already exists to avoid duplicates
           const exists = prev.some(p => p.id === projectileId);
@@ -905,7 +906,7 @@ const Game = () => {
     projectilesRef.on('child_changed', (snapshot) => {
       const projectileData = snapshot.val();
       const projectileId = snapshot.key;
-      
+
       if (projectileData && projectileData.hit) {
         // Update local projectile to show hit animation
         setMilkProjectiles(prev => {
@@ -962,7 +963,7 @@ const Game = () => {
           }
           else setOpponentDisplayName(opponent.displayName || (opponent.email?.split('@')[0]) || 'Opponent');
         }
-      } catch {}
+      } catch { }
     };
     fetchTitles();
   }, [opponent?.email, normalizeControls]);
@@ -1055,17 +1056,17 @@ const Game = () => {
 
         // Check current win rate for title requirements
         const currentWinRate = newWins / newPlayed;
-        
+
         // Check which titles should be removed based on current stats
         const titlesToRemove = [];
         const currentTitles = [...prevTitles];
-        
+
         // Check Winner title - requires 60% win rate
         if (currentTitles.includes('Winner') && currentWinRate < 0.6) {
           titlesToRemove.push('Winner');
           currentTitles.splice(currentTitles.indexOf('Winner'), 1);
         }
-        
+
         // Check Master title - requires all other titles
         if (currentTitles.includes('Master')) {
           const hasAllRequiredTitles = obviousLiarAch && didImpossibleAch && spammerAch && winnerAch;
@@ -1074,7 +1075,7 @@ const Game = () => {
             currentTitles.splice(currentTitles.indexOf('Master'), 1);
           }
         }
-        
+
         // Titles for newly unlocked achievements
         const newTitles = [];
         if (obviousLiarAch && !prevAchievements.obviousLiar) newTitles.push('Obvious Liar');
@@ -1100,18 +1101,18 @@ const Game = () => {
           achievements: achievementsUpdate,
         };
         await setDoc(myDocRef, updates, { merge: true });
-        
-                // Update titles - add new ones and remove invalid ones
+
+        // Update titles - add new ones and remove invalid ones
         if (newTitles.length > 0 || titlesToRemove.length > 0) {
           // First add new titles
           if (newTitles.length > 0) {
             await updateDoc(myDocRef, { titles: arrayUnion(...newTitles) });
           }
-          
+
           // Then remove titles that no longer qualify
           if (titlesToRemove.length > 0) {
             await updateDoc(myDocRef, { titles: currentTitles });
-            
+
             // Check if the player's selected title was removed
             const currentSelectedTitle = myData?.selectedTitle;
             if (currentSelectedTitle && titlesToRemove.includes(currentSelectedTitle)) {
@@ -1119,20 +1120,20 @@ const Game = () => {
             }
           }
         }
-        
+
         // Show notifications (toast-like): render transient banners via local state
         if (newUnlocks.length > 0 || newTitles.length > 0 || titlesToRemove.length > 0) {
           const messages = [];
           if (newUnlocks.length > 0) messages.push(...newUnlocks);
           if (newTitles.length > 0) {
-            const titleMessage = newTitles.length === 1 
-              ? `🏆 Achievement Unlocked: "${newTitles[0]}"` 
+            const titleMessage = newTitles.length === 1
+              ? `🏆 Achievement Unlocked: "${newTitles[0]}"`
               : `🏆 Achievements Unlocked: ${newTitles.map(t => `"${t}"`).join(', ')}`;
             messages.push(titleMessage);
           }
           if (titlesToRemove.length > 0) {
-            const removedMessage = titlesToRemove.length === 1 
-              ? `❌ Title Lost: "${titlesToRemove[0]}" - Requirements no longer met` 
+            const removedMessage = titlesToRemove.length === 1
+              ? `❌ Title Lost: "${titlesToRemove[0]}" - Requirements no longer met`
               : `❌ Titles Lost: ${titlesToRemove.map(t => `"${t}"`).join(', ')} - Requirements no longer met`;
             messages.push(removedMessage);
           }
@@ -1140,7 +1141,7 @@ const Game = () => {
           // Auto-hide after 9s
           setTimeout(() => setTransientBanners([]), 9000);
         }
-      } catch {}
+      } catch { }
     };
 
     // If either player is dead, finalize, then end game after 3 seconds
@@ -1161,7 +1162,7 @@ const Game = () => {
   useEffect(() => {
     // Start fighting music when game loads
     soundManager.playBackgroundMusic(true);
-    
+
     // Cleanup: return to menu music when game ends
     return () => {
       soundManager.playBackgroundMusic(false);
@@ -1195,10 +1196,10 @@ const Game = () => {
       if (moved) {
         // Start continuous walking sound loop
         soundManager.playWalk();
-        
+
         updatePlayerPosition(nextX, ps.y); // throttled network inside
         setPlayerState(prev => ({
-            ...prev,
+          ...prev,
           x: nextX,
           currentAction: prev.isAttacking ? prev.currentAction : 'walk', // Don't override attack animations
         }));
@@ -1211,7 +1212,7 @@ const Game = () => {
       const isMoving = moved;
       if (!isMoving && ps.currentAction === 'walk' && !ps.isAttacking && !ps.isBlocking && !ps.isDead && !ps.isFinishHim) {
         setPlayerState(prev => ({
-            ...prev,
+          ...prev,
           currentAction: 'idle',
           animationFrame: 0,
           lastActionTime: now
@@ -1234,13 +1235,13 @@ const Game = () => {
             newState.finishHimStartTime = now; // Start the 5 second timer
             newState.currentAction = 'finish'; // Set to finish animation
             newState.animationFrame = 0; // Reset animation frame
-            
+
             // Sync finish him state to Firebase
             syncAction('finish', prev.facingRight, prev.isInvisible, prev.isDead, true);
           } else if (prev.isFinishHim && prev.hp <= 0) {
             // Stay in finish him state - animation will be handled below
             newState.currentAction = 'finish';
-            
+
             // Check if 5 seconds have passed in finish him state
             if (prev.finishHimStartTime > 0 && now - prev.finishHimStartTime >= 5000) {
               // 5 seconds passed - player dies automatically
@@ -1249,7 +1250,7 @@ const Game = () => {
               newState.currentAction = 'dead';
               newState.animationFrame = 0;
               newState.lastActionTime = now;
-              
+
               // Sync death state to Firebase
               syncAction('dead', prev.facingRight, prev.isInvisible, true, false);
             }
@@ -1280,12 +1281,12 @@ const Game = () => {
         if (prev.isAttacking && !opponentState.isDead) {
           const attackType = prev.currentAction;
           const isInRange = checkAttackRange(prev.x, prev.facingRight, opponentState.x, attackType);
-          
+
           if (isInRange && ['light', 'heavy', 'special'].includes(attackType)) {
             // Only apply damage once per attack - use a much tighter window and track last hit
             const attackJustStarted = now - prev.attackStartTime < 50; // Within 50ms of attack start
             const hasntHitYet = !prev.hasHitThisAttack;
-            
+
             if (attackJustStarted && hasntHitYet) {
               // Mark that we've hit with this attack
               newState.hasHitThisAttack = true;
@@ -1293,22 +1294,22 @@ const Game = () => {
               if (attackType === 'light' || attackType === 'heavy' || attackType === 'special') {
                 playerMovesUsedRef.current[attackType] = (playerMovesUsedRef.current[attackType] || 0) + 1;
               }
-              
+
               // If opponent is in finish him state, they die (no damage calculation needed)
               if (opponentState.isFinishHim) {
                 // Sync death state to Firebase
                 const opponentActionKey = playerNumber === 1 ? 'player2/action' : 'player1/action';
                 gameRoomRef.current.update({
-                  [opponentActionKey]: { 
-                    currentAction: 'dead', 
+                  [opponentActionKey]: {
+                    currentAction: 'dead',
                     facingRight: opponentState.facingRight,
                     isInvisible: false,
-                    isDead: true, 
-                    isFinishHim: false, 
-                    timestamp: Date.now() 
+                    isDead: true,
+                    isFinishHim: false,
+                    timestamp: Date.now()
                   }
                 });
-                
+
                 setOpponentState(prevOpp => ({
                   ...prevOpp,
                   isDead: true,
@@ -1319,18 +1320,18 @@ const Game = () => {
                 }));
               } else {
                 // Check if opponent is properly blocking (facing attacker and has blocks remaining)
-                const isProperlyBlocking = opponentState.isBlocking && 
-                                         opponentState.canBlock && 
-                                         opponentState.blocksRemaining > 0 &&
-                                         ((prev.facingRight && !opponentState.facingRight) || (!prev.facingRight && opponentState.facingRight)); // Must face each other
-                
+                const isProperlyBlocking = opponentState.isBlocking &&
+                  opponentState.canBlock &&
+                  opponentState.blocksRemaining > 0 &&
+                  ((prev.facingRight && !opponentState.facingRight) || (!prev.facingRight && opponentState.facingRight)); // Must face each other
+
                 // Debug blocking
                 console.log(`BLOCK DEBUG: opponentBlocking=${opponentState.isBlocking}, canBlock=${opponentState.canBlock}, blocksLeft=${opponentState.blocksRemaining}, attackerFacing=${prev.facingRight}, defenderFacing=${opponentState.facingRight}, properBlock=${isProperlyBlocking}`);
-                
+
                 // Normal damage calculation for alive opponents
                 const damage = calculateDamage(CHARACTER_STATS[character.name], attackType, isProperlyBlocking);
                 console.log(`${character.name} ${attackType} attack: damage=${damage}, blocked=${isProperlyBlocking}, stats:`, CHARACTER_STATS[character.name]);
-                
+
                 if (isProperlyBlocking) {
                   // Successfully blocked - reduce block count
                   setOpponentState(prevOpp => ({
@@ -1340,7 +1341,7 @@ const Game = () => {
                     blockCooldownEnd: prevOpp.blocksRemaining - 1 <= 0 ? now + 3000 : prevOpp.blockCooldownEnd // 3 second cooldown
                   }));
                 }
-                
+
                 if (damage > 0) {
                   applyDamageToOpponent(damage);
                 }
@@ -1469,31 +1470,31 @@ const Game = () => {
         if (prev.isAttacking && !playerStateRef.current.isDead) {
           const attackType = prev.currentAction;
           const isInRange = checkAttackRange(prev.x, prev.facingRight, playerStateRef.current.x, attackType);
-          
+
           if (isInRange && ['light', 'heavy', 'special'].includes(attackType)) {
             // Only apply damage once per attack - use timing check
             const attackJustStarted = now - prev.attackStartTime < 50; // Within 50ms of attack start
             const hasntHitYet = !prev.hasHitThisAttack;
-            
+
             if (attackJustStarted && hasntHitYet) {
               // Mark that opponent has hit with this attack
               newState.hasHitThisAttack = true;
-              
+
               // If player is in finish him state, they die (no damage calculation needed)
               if (playerStateRef.current.isFinishHim) {
                 // Sync death state to Firebase
                 const playerActionKey = playerNumber === 1 ? 'player1/action' : 'player2/action';
                 gameRoomRef.current.update({
-                  [playerActionKey]: { 
-                    currentAction: 'dead', 
+                  [playerActionKey]: {
+                    currentAction: 'dead',
                     facingRight: playerStateRef.current.facingRight,
                     isInvisible: false,
-                    isDead: true, 
-                    isFinishHim: false, 
-                    timestamp: Date.now() 
+                    isDead: true,
+                    isFinishHim: false,
+                    timestamp: Date.now()
                   }
                 });
-                
+
                 setPlayerState(prevPlayer => ({
                   ...prevPlayer,
                   isDead: true,
@@ -1504,18 +1505,18 @@ const Game = () => {
                 }));
               } else {
                 // Check if player is properly blocking (facing attacker and has blocks remaining)
-                const isProperlyBlocking = playerStateRef.current.isBlocking && 
-                                         playerStateRef.current.canBlock && 
-                                         playerStateRef.current.blocksRemaining > 0 &&
-                                         ((prev.facingRight && !playerStateRef.current.facingRight) || (!prev.facingRight && playerStateRef.current.facingRight)); // Must face each other
-                
+                const isProperlyBlocking = playerStateRef.current.isBlocking &&
+                  playerStateRef.current.canBlock &&
+                  playerStateRef.current.blocksRemaining > 0 &&
+                  ((prev.facingRight && !playerStateRef.current.facingRight) || (!prev.facingRight && playerStateRef.current.facingRight)); // Must face each other
+
                 // Debug blocking (opponent attacking player)
                 console.log(`PLAYER BLOCK DEBUG: playerBlocking=${playerStateRef.current.isBlocking}, canBlock=${playerStateRef.current.canBlock}, blocksLeft=${playerStateRef.current.blocksRemaining}, attackerFacing=${prev.facingRight}, defenderFacing=${playerStateRef.current.facingRight}, properBlock=${isProperlyBlocking}`);
-                
+
                 // Normal damage calculation for alive players
                 const opponentCharacterName = opponent.character?.name || opponent.name;
                 const damage = calculateDamage(CHARACTER_STATS[opponentCharacterName], attackType, isProperlyBlocking);
-                
+
                 if (isProperlyBlocking) {
                   // Successfully blocked - reduce block count
                   setPlayerState(prevPlayer => ({
@@ -1525,7 +1526,7 @@ const Game = () => {
                     blockCooldownEnd: prevPlayer.blocksRemaining - 1 <= 0 ? now + 3000 : prevPlayer.blockCooldownEnd // 3 second cooldown
                   }));
                 }
-                
+
                 if (damage > 0) {
                   applyDamageToPlayer(damage);
                 }
@@ -1553,7 +1554,7 @@ const Game = () => {
               const finishFrames = animations.finish.length;
               newState.animationFrame = (prev.animationFrame + 1) % finishFrames;
             }
-            
+
             // Check if opponent has been in finish him state for 5 seconds
             if (prev.finishHimStartTime > 0 && now - prev.finishHimStartTime >= 5000) {
               // 5 seconds passed - opponent dies automatically
@@ -1587,15 +1588,15 @@ const Game = () => {
       setMilkProjectiles(prevProjectiles => {
         return prevProjectiles.map(projectile => {
           let updatedProjectile = { ...projectile };
-          
+
           if (!projectile.isHit) {
             // Move projectile
             const deltaX = projectile.speed * projectile.direction * deltaMs / 16; // Normalize to 60fps
             const nextX = updatedProjectile.x + deltaX;
-            
+
             // Handle collision differently for own vs enemy projectiles
             if (projectile.isEnemyProjectile) {
-          // Enemy projectile - check collision with local player using refined horizontal logic
+              // Enemy projectile - check collision with local player using refined horizontal logic
               const targetX = playerStateRef.current.x;
               const targetY = playerStateRef.current.y;
               const isTargetHittable = !playerStateRef.current.isDead;
@@ -1607,7 +1608,7 @@ const Game = () => {
                 const projectileRightEdge = nextX + (CHARACTER_SIZE * 0.4);
                 const targetHitPoint = targetX + (CHARACTER_SIZE * 0.5); // Hit point is target's center
                 if (projectileRightEdge >= targetHitPoint - (CHARACTER_SIZE * 0.08) && // Adjusted hit range
-                    projectileRightEdge <= targetHitPoint + (CHARACTER_SIZE * 0.08)) {
+                  projectileRightEdge <= targetHitPoint + (CHARACTER_SIZE * 0.08)) {
                   collisionOccurred = true;
                   snapX = targetHitPoint - (CHARACTER_SIZE * 0.4); // Snap projectile's left edge
                 }
@@ -1615,7 +1616,7 @@ const Game = () => {
                 const projectileLeftEdge = nextX;
                 const targetHitPoint = targetX + CHARACTER_SIZE - (CHARACTER_SIZE * 0.2); // Target's right edge - 20%
                 if (projectileLeftEdge <= targetHitPoint + (CHARACTER_SIZE * 0.05) &&
-                    projectileLeftEdge >= targetHitPoint - (CHARACTER_SIZE * 0.05)) {
+                  projectileLeftEdge >= targetHitPoint - (CHARACTER_SIZE * 0.05)) {
                   collisionOccurred = true;
                   snapX = targetHitPoint;
                 }
@@ -1627,7 +1628,7 @@ const Game = () => {
                 updatedProjectile.hitStartTime = now;
                 updatedProjectile.animationFrame = 0;
                 updatedProjectile.x = snapX; // Apply snap position
-                
+
                 // Sync hit animation to Firebase so both players see it
                 gameRoomRef.current.child(`projectiles/${projectile.id}/hit`).set({
                   isHit: true,
@@ -1637,14 +1638,14 @@ const Game = () => {
                 });
 
                 const targetState = playerStateRef.current;
-                const isProperlyBlocking = targetState.isBlocking && 
-                                         targetState.canBlock && 
-                                         targetState.blocksRemaining > 0 &&
-                                         ((projectile.direction === 1 && !targetState.facingRight) || 
-                                          (projectile.direction === -1 && targetState.facingRight));
+                const isProperlyBlocking = targetState.isBlocking &&
+                  targetState.canBlock &&
+                  targetState.blocksRemaining > 0 &&
+                  ((projectile.direction === 1 && !targetState.facingRight) ||
+                    (projectile.direction === -1 && targetState.facingRight));
                 console.log(`ENEMY MILKSHOT BLOCK DEBUG: playerBlocking=${targetState.isBlocking}, canBlock=${targetState.canBlock}, blocksLeft=${targetState.blocksRemaining}, projectileDir=${projectile.direction}, playerFacing=${targetState.facingRight}, properBlock=${isProperlyBlocking}`);
                 const milkDamage = isProperlyBlocking ? 0 : 5;
-                
+
                 if (isProperlyBlocking) {
                   setPlayerState(prevPlayer => ({
                     ...prevPlayer,
@@ -1653,7 +1654,7 @@ const Game = () => {
                     blockCooldownEnd: prevPlayer.blocksRemaining - 1 <= 0 ? now + 3000 : prevPlayer.blockCooldownEnd
                   }));
                 }
-                
+
                 if (milkDamage > 0) {
                   applyDamageToPlayer(milkDamage);
                 }
@@ -1661,7 +1662,7 @@ const Game = () => {
                 updatedProjectile.x = nextX; // No hit -> advance
               }
             } else {
-          // Own projectile - check collision with opponent using refined horizontal logic
+              // Own projectile - check collision with opponent using refined horizontal logic
               const targetX = opponentStateRef.current.x;
               const targetY = opponentStateRef.current.y;
               const isTargetHittable = !opponentStateRef.current.isDead;
@@ -1673,7 +1674,7 @@ const Game = () => {
                 const projectileRightEdge = nextX + (CHARACTER_SIZE * 0.4);
                 const targetHitPoint = targetX + (CHARACTER_SIZE * 0.5); // Hit point is target's center
                 if (projectileRightEdge >= targetHitPoint - (CHARACTER_SIZE * 0.08) && // Adjusted hit range
-                    projectileRightEdge <= targetHitPoint + (CHARACTER_SIZE * 0.08)) {
+                  projectileRightEdge <= targetHitPoint + (CHARACTER_SIZE * 0.08)) {
                   collisionOccurred = true;
                   snapX = targetHitPoint - (CHARACTER_SIZE * 0.4); // Snap projectile's left edge
                 }
@@ -1681,7 +1682,7 @@ const Game = () => {
                 const projectileLeftEdge = nextX;
                 const targetHitPoint = targetX + CHARACTER_SIZE - (CHARACTER_SIZE * 0.2); // Target's right edge - 20%
                 if (projectileLeftEdge <= targetHitPoint + (CHARACTER_SIZE * 0.05) &&
-                    projectileLeftEdge >= targetHitPoint - (CHARACTER_SIZE * 0.05)) {
+                  projectileLeftEdge >= targetHitPoint - (CHARACTER_SIZE * 0.05)) {
                   collisionOccurred = true;
                   snapX = targetHitPoint;
                 }
@@ -1693,7 +1694,7 @@ const Game = () => {
                 updatedProjectile.hitStartTime = now;
                 updatedProjectile.animationFrame = 0;
                 updatedProjectile.x = snapX; // Apply snap position
-                
+
                 // Sync hit animation to Firebase so both players see it
                 gameRoomRef.current.child(`projectiles/${projectile.id}/hit`).set({
                   isHit: true,
@@ -1703,14 +1704,14 @@ const Game = () => {
                 });
 
                 const targetState = opponentStateRef.current;
-                const isProperlyBlocking = targetState.isBlocking && 
-                                         targetState.canBlock && 
-                                         targetState.blocksRemaining > 0 &&
-                                         ((projectile.direction === 1 && !targetState.facingRight) || 
-                                          (projectile.direction === -1 && targetState.facingRight));
+                const isProperlyBlocking = targetState.isBlocking &&
+                  targetState.canBlock &&
+                  targetState.blocksRemaining > 0 &&
+                  ((projectile.direction === 1 && !targetState.facingRight) ||
+                    (projectile.direction === -1 && targetState.facingRight));
                 console.log(`OWN MILKSHOT BLOCK DEBUG: opponentBlocking=${targetState.isBlocking}, canBlock=${targetState.canBlock}, blocksLeft=${targetState.blocksRemaining}, projectileDir=${projectile.direction}, opponentFacing=${targetState.facingRight}, properBlock=${isProperlyBlocking}`);
                 const milkDamage = isProperlyBlocking ? 0 : 5;
-                
+
                 if (isProperlyBlocking) {
                   setOpponentState(prevOpp => ({
                     ...prevOpp,
@@ -1719,7 +1720,7 @@ const Game = () => {
                     blockCooldownEnd: prevOpp.blocksRemaining - 1 <= 0 ? now + 3000 : prevOpp.blockCooldownEnd
                   }));
                 }
-                
+
                 if (milkDamage > 0) {
                   applyDamageToOpponent(milkDamage);
                 }
@@ -1727,7 +1728,7 @@ const Game = () => {
                 updatedProjectile.x = nextX; // No hit -> advance
               }
             }
-            
+
             // Check screen boundaries
             if (nextX < 0 || nextX > width) {
               updatedProjectile.isHit = true;
@@ -1735,7 +1736,7 @@ const Game = () => {
               updatedProjectile.animationFrame = 0;
             }
           }
-          
+
           // Update animation
           const animSpeed = 100; // Animation speed for milk
           if (now - updatedProjectile.lastAnimationTime > animSpeed) {
@@ -1750,7 +1751,7 @@ const Game = () => {
             }
             updatedProjectile.lastAnimationTime = now;
           }
-          
+
           return updatedProjectile;
         }).filter(projectile => {
           // Remove projectiles that have finished hit animation
@@ -1775,14 +1776,11 @@ const Game = () => {
   const handleKeyDown = useCallback((e) => {
     if (playerState.hp <= 0 || playerState.isDead || playerState.isFinishHim) return; // Prevent input if dead or in finish him state
     const now = Date.now();
-    const me = authentication.currentUser;
-    const controls = (me && me.email) ? (opponentDisplayName === null ? {} : {}) : {}; // placeholder
-    // Load from Firestore-loaded controls if desired in the future
     const key = e.key.toLowerCase();
-    
+
     // Add key to pressed keys
     setPressedKeys(prev => new Set(prev).add(key));
-    
+
     switch (key) {
       case keybinds.left: // Walk left
         {
@@ -1807,8 +1805,8 @@ const Game = () => {
             };
           });
         }
-          break;
-        case keybinds.right: // Walk right
+        break;
+      case keybinds.right: // Walk right
         {
           const newFacing = true;
           const newAction = playerState.isAttacking ? playerState.currentAction : 'walk'; // Don't override attacks
@@ -1822,7 +1820,7 @@ const Game = () => {
             const newXRight = Math.min(RIGHT_BORDER, prev.x + prev.speed);
             updatePlayerPosition(newXRight, prev.y);
             return {
-            ...prev,
+              ...prev,
               x: newXRight,
               facingRight: newFacing,
               currentAction: prev.isAttacking ? prev.currentAction : newAction, // Don't override attacks
@@ -1831,7 +1829,7 @@ const Game = () => {
             };
           });
         }
-          break;
+        break;
       case keybinds.block: // Block (hold)
         if (playerState.canBlock) { // Only allow blocking if not on cooldown
           setPlayerState((prev) => ({
@@ -1845,43 +1843,43 @@ const Game = () => {
             syncAction('block', playerState.facingRight, playerState.isInvisible, playerState.isDead, playerState.isFinishHim);
           }
         }
-          break;
+        break;
       case keybinds.light: // Light
-                if (!playerState.isAttacking && now - playerState.lastLightAttackTime > 800) { // 0.8 second cooldown for light
-            // Play punch sound for light attacks
-            soundManager.playPunch();
-            
-            setPlayerState((prev) => ({
-              ...prev,
-              currentAction: 'light',
+        if (!playerState.isAttacking && now - playerState.lastLightAttackTime > 800) { // 0.8 second cooldown for light
+          // Play punch sound for light attacks
+          soundManager.playPunch();
+
+          setPlayerState((prev) => ({
+            ...prev,
+            currentAction: 'light',
             animationFrame: 0,
             lastActionTime: now,
             lastLightAttackTime: now,
             isAttacking: true,
             attackStartTime: now,
             hasHitThisAttack: false // Reset hit tracking for new attack
-            }));
+          }));
           if (playerState.currentAction !== 'light') {
             syncAction('light', playerState.facingRight, playerState.isInvisible, playerState.isDead, playerState.isFinishHim);
           }
           // Track move usage
           playerMovesUsedRef.current.light = (playerMovesUsedRef.current.light || 0) + 1;
+        }
+        break;
+      case keybinds.heavy: // Heavy
+        if (!playerState.isAttacking && now - playerState.lastHeavyAttackTime > 1200) { // 1.2 second cooldown for heavy
+          // Play character-specific heavy attack sounds using current player character
+          if (playerState.character?.name === 'Cow') {
+            soundManager.playKick(); // Cow kick
+          } else if (playerState.character?.name === 'Chameleon') {
+            soundManager.playLick(); // Chameleon lick attack
+          } else if (playerState.character?.name === 'Tiger') {
+            soundManager.playScratch(); // Tiger scratch
           }
-          break;
-        case keybinds.heavy: // Heavy
-                if (!playerState.isAttacking && now - playerState.lastHeavyAttackTime > 1200) { // 1.2 second cooldown for heavy
-              // Play character-specific heavy attack sounds using current player character
-            if (playerState.character?.name === 'Cow') {
-                soundManager.playKick(); // Cow kick
-              } else if (playerState.character?.name === 'Chameleon') {
-                soundManager.playLick(); // Chameleon lick attack
-              } else if (playerState.character?.name === 'Tiger') {
-                soundManager.playScratch(); // Tiger scratch
-              }
-              
-              setPlayerState((prev) => ({
-                ...prev,
-                currentAction: 'heavy',
+
+          setPlayerState((prev) => ({
+            ...prev,
+            currentAction: 'heavy',
             animationFrame: 0,
             lastActionTime: now,
             lastHeavyAttackTime: now,
@@ -1895,15 +1893,15 @@ const Game = () => {
           }
           // Track move usage
           playerMovesUsedRef.current.heavy = (playerMovesUsedRef.current.heavy || 0) + 1;
-          }
-          break;
-        case keybinds.special: // Special
+        }
+        break;
+      case keybinds.special: // Special
         // Character-specific special cooldowns
         let specialCooldown = 2000; // Default 2 seconds for general special
         if (playerState.character?.name === 'Tiger') {
           specialCooldown = 3000; // Tiger special: 3 seconds (1.5s + 1.5s extra)
         }
-        
+
         if (!playerState.isAttacking && now - playerState.lastSpecialAttackTime > specialCooldown) {
           // Handle chameleon invisibility toggle with timer system
           if (playerState.character?.name === 'Chameleon') {
@@ -1911,33 +1909,33 @@ const Game = () => {
             if (now < playerState.invisibilityCooldownEnd) {
               break; // Can't use invisibility during cooldown
             }
-            
+
             const newInvisibleState = !playerState.isInvisible;
             // Play invisibility sound
             soundManager.playInvisible();
-            
+
             setPlayerState((prev) => ({
               ...prev,
               lastSpecialAttackTime: now,
               isInvisible: newInvisibleState,
               invisibilityStartTime: newInvisibleState ? now : 0,
               invisibilityCooldownEnd: !newInvisibleState ? now + 5000 : prev.invisibilityCooldownEnd // 5s cooldown when going visible
-          }));
+            }));
             syncAction('idle', playerState.facingRight, newInvisibleState, playerState.isDead, playerState.isFinishHim); // Stay in idle, sync new invisibility state
             // Track move usage as special toggle
             playerMovesUsedRef.current.special = (playerMovesUsedRef.current.special || 0) + 1;
           } else {
-                        // Other characters use normal special attack
+            // Other characters use normal special attack
             // Play character-specific special attack sounds using current player character
             if (playerState.character?.name === 'Cow') {
               soundManager.playMilk(); // Cow milkshot
             } else if (playerState.character?.name === 'Tiger') {
               soundManager.playSmash(); // Tiger smash
             }
-            
-          setPlayerState((prev) => ({
-            ...prev,
-            currentAction: 'special',
+
+            setPlayerState((prev) => ({
+              ...prev,
+              currentAction: 'special',
               animationFrame: 0,
               lastActionTime: now,
               lastSpecialAttackTime: now,
@@ -1946,24 +1944,24 @@ const Game = () => {
               specialStartX: prev.x,
               hasHitThisAttack: false // Reset hit tracking for new attack
             }));
-            
-                      // Create milk projectile for cow
-          if (playerState.character?.name === 'Cow') {
-            const direction = playerState.facingRight ? 1 : -1;
-            let projectileStartX;
-            
-            if (playerState.facingRight) {
-              // Facing right - keep current positioning
-              projectileStartX = playerState.x + (CHARACTER_SIZE * 0.1);
-            } else {
-              // Facing left - start much more to the right (almost at cow center)
-              projectileStartX = playerState.x + (CHARACTER_SIZE * 0.15); // Positive offset moves it to the right
+
+            // Create milk projectile for cow
+            if (playerState.character?.name === 'Cow') {
+              const direction = playerState.facingRight ? 1 : -1;
+              let projectileStartX;
+
+              if (playerState.facingRight) {
+                // Facing right - keep current positioning
+                projectileStartX = playerState.x + (CHARACTER_SIZE * 0.1);
+              } else {
+                // Facing left - start much more to the right (almost at cow center)
+                projectileStartX = playerState.x + (CHARACTER_SIZE * 0.15); // Positive offset moves it to the right
+              }
+
+              const projectileStartY = playerState.y - (CHARACTER_SIZE * 0.4); // Higher from cow's center
+              createMilkProjectile(projectileStartX, projectileStartY, direction);
             }
-            
-            const projectileStartY = playerState.y - (CHARACTER_SIZE * 0.4); // Higher from cow's center
-            createMilkProjectile(projectileStartX, projectileStartY, direction);
-          }
-            
+
             if (playerState.currentAction !== 'special') {
               syncAction('special', playerState.facingRight, playerState.isInvisible, playerState.isDead, playerState.isFinishHim);
             }
@@ -1971,27 +1969,27 @@ const Game = () => {
             playerMovesUsedRef.current.special = (playerMovesUsedRef.current.special || 0) + 1;
           }
         }
-          break;
+        break;
 
-        default:
-          break;
-      }
+      default:
+        break;
+    }
   }, [playerState, width, character.name, playerNumber, updatePlayerPosition, syncAction, createMilkProjectile, keybinds]);
 
   const handleKeyUp = useCallback((e) => {
-      if (playerState.hp <= 0 || playerState.isDead || playerState.isFinishHim) return; // Prevent input if dead or in finish him state
+    if (playerState.hp <= 0 || playerState.isDead || playerState.isFinishHim) return; // Prevent input if dead or in finish him state
     const now = Date.now();
     const key = e.key.toLowerCase();
-    
+
     // Remove key from pressed keys
     setPressedKeys(prev => {
       const newSet = new Set(prev);
       newSet.delete(key);
       return newSet;
     });
-    
+
     switch (key) {
-        case 'f': // Stop blocking
+      case keybinds.block: // Stop blocking
         {
           const newAction = 'idle';
           if (playerState.currentAction !== newAction) {
@@ -2005,25 +2003,25 @@ const Game = () => {
             lastActionTime: now
           }));
         }
-          break;
-        case 'a':
-        case 'd':
+        break;
+      case keybinds.left:
+      case keybinds.right:
         {
           const keysHeld = pressedKeysRef.current;
           if (!keysHeld.has(keybinds.left) && !keysHeld.has(keybinds.right) && playerState.currentAction !== 'idle') {
             syncAction('idle', playerState.facingRight, playerState.isInvisible, playerState.isDead, playerState.isFinishHim);
-          setPlayerState((prev) => ({
-            ...prev,
-            currentAction: 'idle',
+            setPlayerState((prev) => ({
+              ...prev,
+              currentAction: 'idle',
               animationFrame: 0,
               lastActionTime: now
-          }));
+            }));
           }
         }
-          break;
-        default:
-          break;
-      }
+        break;
+      default:
+        break;
+    }
   }, [playerState, syncAction, keybinds]);
 
   useEffect(() => {
@@ -2071,7 +2069,7 @@ const Game = () => {
       height: CHARACTER_SIZE,
       resizeMode: 'contain'
     };
-    
+
     // Removed special scaling for Cow to fix growing issue
     return {
       ...baseStyle,
@@ -2210,38 +2208,38 @@ const Game = () => {
             ))}
           </View>
         )}
-        
+
         {/* Player Character */}
-      <View
-        style={[
-          styles.characterContainer,
-          {
+        <View
+          style={[
+            styles.characterContainer,
+            {
               left: playerState.x,
               bottom: 0,
               transform: [{ scaleX: playerState.facingRight ? 1 : -1 }], // face based on direction
               opacity: playerState.isInvisible ? 0.3 : 1.0, // Semi-transparent when invisible (player can still see themselves)
-          },
-        ]}
-      >
-        <Image
+            },
+          ]}
+        >
+          <Image
             source={CHARACTER_ANIMATIONS[character.name]?.[playerState.currentAction]?.[playerState.animationFrame] || character.image}
             style={getCharacterImageStyle(character.name, playerState.currentAction)}
-        />
-      </View>
+          />
+        </View>
 
         {/* Opponent Character */}
-      <View
-        style={[
-          styles.characterContainer,
-          {
+        <View
+          style={[
+            styles.characterContainer,
+            {
               left: opponentState.x,
               bottom: 0,
               transform: [{ scaleX: opponentState.facingRight ? 1 : -1 }], // face based on direction
               opacity: opponentState.isInvisible ? 0.0 : 1.0, // Fully invisible when opponent is invisible
-          },
-        ]}
-      >
-        <Image
+            },
+          ]}
+        >
+          <Image
             source={CHARACTER_ANIMATIONS[opponent.character?.name || opponent.name]?.[opponentState.currentAction]?.[opponentState.animationFrame] || opponent.character?.image || opponent.image}
             style={getCharacterImageStyle(opponent.character?.name || opponent.name, opponentState.currentAction)}
           />

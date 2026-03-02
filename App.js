@@ -38,9 +38,6 @@ const GameSessionWrapper = ({ component: Component, ...props }) => {
 };
 
 export default function App() {
-  const [audioUnlocked, setAudioUnlocked] = useState(false);
-
-  console.log('App component rendering, audioUnlocked:', audioUnlocked);
 
   // Preload all images/sprites once for the whole app to reduce flicker
   useEffect(() => {
@@ -50,38 +47,38 @@ export default function App() {
   return (
     <BackgroundProvider>
       <NavigationContainer>
-        <Stack.Navigator 
-          initialRouteName="Login" 
-          screenOptions={{ 
+        <Stack.Navigator
+          initialRouteName="Login"
+          screenOptions={{
             headerShown: false,
           }}
         >
-          <Stack.Screen 
-            name="Login" 
+          <Stack.Screen
+            name="Login"
             component={LoginScreen}
           />
-          <Stack.Screen 
-            name="GameSession" 
-            component={(props) => <GameSessionWrapper component={GameSession} {...props} />} 
+          <Stack.Screen
+            name="GameSession"
+            component={(props) => <GameSessionWrapper component={GameSession} {...props} />}
           />
-          <Stack.Screen 
-            name="Register" 
+          <Stack.Screen
+            name="Register"
             component={Register}
           />
-          <Stack.Screen 
-            name="ForgotPassword" 
+          <Stack.Screen
+            name="ForgotPassword"
             component={ForgotPassword}
           />
-          <Stack.Screen 
-            name="Settings" 
+          <Stack.Screen
+            name="Settings"
             component={Settings}
           />
-          <Stack.Screen 
-            name="CharacterChoosing" 
+          <Stack.Screen
+            name="CharacterChoosing"
             component={CharacterChoosing}
           />
-          <Stack.Screen 
-            name="Game" 
+          <Stack.Screen
+            name="Game"
             component={Game}
           />
           <Stack.Screen
@@ -94,7 +91,7 @@ export default function App() {
           />
         </Stack.Navigator>
       </NavigationContainer>
-      <AudioUnlock onAudioUnlocked={() => setAudioUnlocked(true)} />
+      <AudioUnlock onAudioUnlocked={() => { }} />
     </BackgroundProvider>
   );
 }

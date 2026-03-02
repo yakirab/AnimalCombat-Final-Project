@@ -6,6 +6,7 @@ import { authentication, firestore } from './Config';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import soundManager from './SoundManager';
 import { signOut } from 'firebase/auth';
+import { encodeEmail } from './utils';
 
 const { width, height } = Dimensions.get('window');
 
@@ -16,7 +17,7 @@ const SCALE_X = width / NORMAL_WIDTH;
 const SCALE_Y = height / NORMAL_HEIGHT;
 const SCALE = Math.min(SCALE_X, SCALE_Y) * 1.5; // Use the smaller scale to maintain proportions, increased by 1.5x
 const ADMIN_EMAILS = ['yakir.abramovich@gmail.com'];
-const encodeEmail = (email) => (email || '').replace(/\./g, ',');
+
 
 const formatDuration = (ms) => {
   if (ms <= 0) return 'now';
@@ -143,38 +144,38 @@ const GameSession = () => {
 
   // Memoize styles for better performance
   const dynamicStyles = useMemo(() => StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  backgroundImage: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  banOverlay: {
-    position: 'absolute',
-    top: 120 * SCALE,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 50,
-    paddingHorizontal: 20 * SCALE,
-  },
-  banTitle: {
-    color: '#ff5555',
-    fontSize: 64 * SCALE,
-    fontWeight: '900',
-    textShadowColor: 'black',
-    textShadowOffset: { width: 4 * SCALE, height: 4 * SCALE },
-    textShadowRadius: 6 * SCALE,
-  },
-  banTimer: {
-    color: '#ffd166',
-    fontSize: 48 * SCALE,
-    fontWeight: '800',
-    marginTop: 10 * SCALE,
-  },
+    container: {
+      flex: 1,
+    },
+    backgroundImage: {
+      position: 'absolute',
+      width: '100%',
+      height: '100%',
+      resizeMode: 'cover',
+    },
+    banOverlay: {
+      position: 'absolute',
+      top: 120 * SCALE,
+      left: 0,
+      right: 0,
+      alignItems: 'center',
+      zIndex: 50,
+      paddingHorizontal: 20 * SCALE,
+    },
+    banTitle: {
+      color: '#ff5555',
+      fontSize: 64 * SCALE,
+      fontWeight: '900',
+      textShadowColor: 'black',
+      textShadowOffset: { width: 4 * SCALE, height: 4 * SCALE },
+      textShadowRadius: 6 * SCALE,
+    },
+    banTimer: {
+      color: '#ffd166',
+      fontSize: 48 * SCALE,
+      fontWeight: '800',
+      marginTop: 10 * SCALE,
+    },
     banUntil: {
       color: '#fff',
       fontSize: 28 * SCALE,
@@ -190,38 +191,38 @@ const GameSession = () => {
       gap: 20 * SCALE,
       justifyContent: 'center',
     },
-  button: {
-    backgroundColor: '#800000',
+    button: {
+      backgroundColor: '#800000',
       width: 250 * SCALE,
       height: 100 * SCALE,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: 0,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
       shadowRadius: 6,
       elevation: 8,
-  },
-  logoutButton: {
-    backgroundColor: '#263238',
-    width: 250 * SCALE,
-    height: 100 * SCALE,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  buttonText: {
-    color: 'black',
+    },
+    logoutButton: {
+      backgroundColor: '#263238',
+      width: 250 * SCALE,
+      height: 100 * SCALE,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: 0,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 8,
+    },
+    buttonText: {
+      color: 'black',
       fontSize: 48 * SCALE,
-    fontWeight: '900',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+      fontWeight: '900',
+      textAlign: 'center',
+      textShadowColor: 'rgba(0, 0, 0, 0.75)',
       textShadowOffset: { width: 2 * SCALE, height: 2 * SCALE },
       textShadowRadius: 3 * SCALE,
     },
@@ -316,14 +317,14 @@ const GameSession = () => {
       )}
       <Image source={images[currentIndex % images.length]} style={dynamicStyles.backgroundImage} />
       <View style={dynamicStyles.buttonContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={dynamicStyles.button}
           onPress={handlePlay}
           activeOpacity={0.8}
         >
           <Text style={dynamicStyles.buttonText}>Play</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={dynamicStyles.button}
           onPress={handleSettings}
           activeOpacity={0.8}

@@ -7,6 +7,7 @@ import { signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged 
 import { useBackground } from './BackgroundContext';
 import RunningAnimation from './RunningAnimation';
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import { encodeEmail } from './utils';
 
 const { width, height } = Dimensions.get('window');
 
@@ -28,7 +29,7 @@ const LoginScreen = ({ navigation }) => {
   const [isMuted, setIsMuted] = useState(false);
   const { currentIndex, setIsAnimationRunning } = useBackground();
   let passwordInput;
-  const encodeEmail = (value) => (value || '').replace(/\./g, ',');
+
 
   // Initialize background music when component mounts (only if not on web)
   useEffect(() => {
@@ -135,7 +136,7 @@ const LoginScreen = ({ navigation }) => {
             lastLoginAt: now,
           }, { merge: true }).catch((err) => console.warn('Failed to record login time', err));
         }
-        
+
         // Faster navigation - reduced delay
         setTimeout(() => {
           navigation.navigate('GameSession');
@@ -341,9 +342,9 @@ const LoginScreen = ({ navigation }) => {
   return (
     <View style={dynamicStyles.container}>
       <Image source={images[currentIndex]} style={dynamicStyles.backgroundImage} />
-      
+
       {/* Mute Button */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={dynamicStyles.muteButton}
         onPress={toggleMute}
       >
@@ -351,34 +352,34 @@ const LoginScreen = ({ navigation }) => {
           {isMuted ? '🔇' : '🔊'}
         </Text>
       </TouchableOpacity>
-      
+
       <View style={dynamicStyles.contentContainer}>
         <Text style={dynamicStyles.title}>Login</Text>
-        
-        <TextInput 
-          placeholder="Email" 
-          value={email} 
+
+        <TextInput
+          placeholder="Email"
+          value={email}
           onChangeText={handleEmailChange}
-          style={dynamicStyles.input} 
+          style={dynamicStyles.input}
           onKeyPress={(e) => handleKeyPress(e, passwordInput)}
           returnKeyType="next"
           autoCapitalize="none"
           keyboardType="email-address"
         />
         {emailError ? <Text style={dynamicStyles.errorText}>{emailError}</Text> : null}
-        
-        <TextInput 
+
+        <TextInput
           ref={(input) => { passwordInput = input; }}
-          placeholder="Password" 
-          value={password} 
+          placeholder="Password"
+          value={password}
           onChangeText={handlePasswordChange}
-          secureTextEntry 
-          style={dynamicStyles.input} 
+          secureTextEntry
+          style={dynamicStyles.input}
           onKeyPress={(e) => handleKeyPress(e, null, true)}
           returnKeyType="done"
         />
         {passwordError ? <Text style={dynamicStyles.errorText}>{passwordError}</Text> : null}
-        
+
         {loginError ? <Text style={dynamicStyles.errorText}>{loginError}</Text> : null}
 
         <View style={dynamicStyles.linkContainer}>
@@ -389,19 +390,19 @@ const LoginScreen = ({ navigation }) => {
             <Text style={dynamicStyles.linkText}>Don't have an account? Register now!</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => {
               soundManager.playClick();
               navigateToForgotPassword();
-            }} 
+            }}
             style={dynamicStyles.linkButton}
           >
             <Text style={dynamicStyles.linkText}>Forgot Password?</Text>
           </TouchableOpacity>
         </View>
 
-        <CustomButton 
-          title={isLoading ? "Please wait..." : "Login"} 
+        <CustomButton
+          title={isLoading ? "Please wait..." : "Login"}
           onPress={handleLogin}
           disabled={isLoading}
         />

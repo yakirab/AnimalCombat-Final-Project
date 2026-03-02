@@ -2,10 +2,6 @@ import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import firebase from "firebase/compat/app";
-import "firebase/compat/auth";
-import "firebase/compat/database";
-import "firebase/compat/firestore";
 import Constants from "expo-constants";
 
 // Get Firebase config from environment variables
@@ -23,16 +19,15 @@ const firebaseConfig = {
   measurementId: extra.FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
+// Initialize Firebase (modular SDK only)
 const app = initializeApp(firebaseConfig);
 const authentication = getAuth(app);
 
 // Persist auth between sessions (web)
 if (typeof window !== 'undefined') {
-  setPersistence(authentication, browserLocalPersistence).catch(() => {});
+  setPersistence(authentication, browserLocalPersistence).catch(() => { });
 }
 
 export const database = getDatabase(app);
 export const firestore = getFirestore(app);
-export { firebase, authentication };
+export { authentication };

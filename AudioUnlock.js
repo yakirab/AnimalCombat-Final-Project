@@ -7,19 +7,11 @@ const AudioUnlock = ({ onAudioUnlocked }) => {
   const [audioUnlocked, setAudioUnlocked] = useState(false);
 
   useEffect(() => {
-    console.log('AudioUnlock useEffect triggered, Platform.OS:', Platform.OS);
-    
     // Only show on web platform
     if (Platform.OS === 'web') {
-      console.log('Running on web platform, setting up audio unlock');
-      
-      // Force show the unlock modal on web immediately
-      console.log('Setting showUnlock to true immediately');
       setShowUnlock(true);
-      console.log('Audio unlock modal should be visible');
     } else {
       // On non-web platforms, audio is always available
-      console.log('Running on non-web platform, audio always available');
       setAudioUnlocked(true);
       if (onAudioUnlocked) onAudioUnlocked();
     }
@@ -31,32 +23,32 @@ const AudioUnlock = ({ onAudioUnlocked }) => {
       if (soundManager.audioContext) {
         await soundManager.audioContext.resume();
       }
-      
+
       // Play a silent sound to unlock audio
       soundManager.playClick();
-      
+
       // Wait a bit for audio context to be ready
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       // Start background music with retry
       let retryCount = 0;
       const startBackgroundMusic = async () => {
         try {
           await soundManager.playBackgroundMusic(false);
         } catch (error) {
-          console.log('Background music start failed, retrying...', error);
+          console.error('Background music start failed, retrying...', error);
           if (retryCount < 3) {
             retryCount++;
             setTimeout(startBackgroundMusic, 200);
           }
         }
       };
-      
+
       await startBackgroundMusic();
-      
+
       setAudioUnlocked(true);
       setShowUnlock(false);
-      
+
       if (onAudioUnlocked) onAudioUnlocked();
     } catch (error) {
       console.error('Failed to unlock audio:', error);
@@ -67,10 +59,7 @@ const AudioUnlock = ({ onAudioUnlocked }) => {
     }
   };
 
-  console.log('AudioUnlock render - showUnlock:', showUnlock, 'audioUnlocked:', audioUnlocked);
-  
   if (!showUnlock || audioUnlocked) {
-    console.log('AudioUnlock not rendering - showUnlock:', showUnlock, 'audioUnlocked:', audioUnlocked);
     return null;
   }
 
