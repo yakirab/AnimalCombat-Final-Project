@@ -9,6 +9,8 @@ import LoginScreen from './LoginScreen';
 import GameSession from './GameSession';
 import Register from './Register';
 import ForgotPassword from './ForgotPassword';
+import Leaderboard from './Leaderboard';
+import AdminPanel from './AdminPanel';
 
 const Stack = createNativeStackNavigator();
 
@@ -77,6 +79,14 @@ export default function App() {
           <Stack.Screen
             name="ForgotPassword"
             component={ForgotPassword}
+          />
+          <Stack.Screen
+            name="Leaderboard"
+            component={Leaderboard}
+          />
+          <Stack.Screen
+            name="AdminPanel"
+            component={AdminPanel}
           />
         </Stack.Navigator>
       </NavigationContainer>

@@ -1,82 +1,119 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, View, Image, TouchableOpacity, Text, Keyboard, BackHandler, TextInput } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View, Image, TouchableOpacity, Text, Alert } from 'react-native';
+import { db, authentication } from './Config';
+import { doc, getDoc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
 import RunningAnimation from './RunningAnimation';
+import backgroundImages from './backgroundImages';
+import { useBackground } from './BackgroundContext';
+
 const images = [
-  require('./assets/MenuBackGround/background2.png'), // Adjust the path
-  require('./assets/MenuBackGround/background3.png'), // Adjust the path
-  require('./assets/MenuBackGround/menubackground.png'), // Adjust the path
+  require('./assets/MenuBackGround/background2.png'),
+  require('./assets/MenuBackGround/background3.png'),
+  require('./assets/MenuBackGround/menubackground.png'),
 ];
 
-const GameSession = () => {
-  const [currentIndex, setCurrentIndex] = useState(0);
+const GameSession = ({ navigation }) => {
+  const { currentIndex: bgIndex } = useBackground();
+  const [gameImageIndex, setGameImageIndex] = useState(0);
   const [isAnimationVisible, setIsAnimationVisible] = useState(true);
-  const keyboardShownRef = useRef(false);
-  const textInputRef = useRef(null);
+  const [username, setUsername] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [userScore, setUserScore] = useState(0);
 
   useEffect(() => {
-    // Show keyboard for player input on mount
-    Keyboard.dismiss();
-
-    const showSubscription = Keyboard.addListener('keyboardDidShow', handleKeyboardShow);
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', handleKeyboardHide);
+    fetchUserProfile();
 
     const interval = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
-    }, 1000); // Change image every 1 second
+      setGameImageIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, 1000);
 
     return () => {
-      clearInterval(interval); // Clear interval on unmount
-      setIsAnimationVisible(false); // Stop animation when component unmounts
-      showSubscription.remove();
-      hideSubscription.remove();
+      clearInterval(interval);
+      setIsAnimationVisible(false);
     };
   }, []);
 
-  const handleKeyboardShow = () => {
-    keyboardShownRef.current = true;
-  };
+  const fetchUserProfile = async () => {
+    try {
+      const currentUser = authentication.currentUser;
+      if (!currentUser) return;
 
-  const handleKeyboardHide = () => {
-    keyboardShownRef.current = false;
-  };
-
-  const handleKeyPress = (event) => {
-    // Handle arrow keys or game controls
-    const { key } = event;
-    if (key === 'ArrowUp' || key === 'w' || key === 'W') {
-      // Handle up movement
-      console.log('Up pressed');
-    } else if (key === 'ArrowDown' || key === 's' || key === 'S') {
-      // Handle down movement
-      console.log('Down pressed');
-    } else if (key === 'ArrowLeft' || key === 'a' || key === 'A') {
-      // Handle left movement
-      console.log('Left pressed');
-    } else if (key === 'ArrowRight' || key === 'd' || key === 'D') {
-      // Handle right movement
-      console.log('Right pressed');
-    } else if (key === ' ') {
-      // Handle space for jump/attack
-      console.log('Space pressed');
+      const userDoc = await getDoc(doc(db, 'Users', currentUser.uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setUsername(data.username || data.name || 'Player');
+        setIsAdmin(data.isAdmin || false);
+        setUserScore(data.score || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
     }
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut(authentication);
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+            } catch (error) {
+              console.error('Logout error:', error);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
     <View style={styles.container}>
-      <Image source={images[currentIndex]} style={styles.image} />
+      <Image source={images[gameImageIndex]} style={styles.image} />
       <RunningAnimation isVisible={isAnimationVisible} />
-      <TextInput
-        ref={textInputRef}
-        style={styles.hiddenInput}
-        onKeyPress={handleKeyPress}
-        autoFocus
-      />
+
+      {/* Username & Score Display */}
+      <View style={styles.userInfoBar}>
+        <Text style={styles.usernameText}>👤 {username}</Text>
+        <Text style={styles.scoreText}>⭐ {userScore}</Text>
+      </View>
+
+      {/* Menu Buttons */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.button}>
           <Text style={styles.buttonText}>Play</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.button}>
-          <Text style={styles.buttonText}>Settings</Text>
+
+        <TouchableOpacity
+          style={[styles.button, styles.leaderboardButton]}
+          onPress={() => navigation.navigate('Leaderboard')}
+        >
+          <Text style={styles.buttonText}>🏆 Leaderboard</Text>
+        </TouchableOpacity>
+
+        {isAdmin && (
+          <TouchableOpacity
+            style={[styles.button, styles.adminButton]}
+            onPress={() => navigation.navigate('AdminPanel')}
+          >
+            <Text style={styles.buttonText}>👑 Admin</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={[styles.button, styles.logoutButton]}
+          onPress={handleLogout}
+        >
+          <Text style={styles.buttonText}>Logout</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -92,38 +129,82 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
-  buttonContainer: {
+  userInfoBar: {
     position: 'absolute',
-    bottom: 50,
+    top: 50,
     left: 0,
     right: 0,
-    flexDirection: 'row', // Changed to row for horizontal layout
-    justifyContent: 'center', // Center the buttons container
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 30,
+    zIndex: 10,
+  },
+  usernameText: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  scoreText: {
+    color: '#FFD700',
+    fontSize: 22,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  buttonContainer: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     paddingHorizontal: 20,
+    gap: 15,
   },
   button: {
-    backgroundColor: '#800000', // Changed to burgundy
-    width: 250, // Made buttons wider
-    height: 100, // Made buttons taller
+    backgroundColor: '#800000',
+    minWidth: 180,
+    height: 70,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 20, // Space between buttons horizontally
-    borderRadius: 0, // Square corners
+    borderRadius: 10,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+  },
+  leaderboardButton: {
+    backgroundColor: '#1B5E20',
+  },
+  adminButton: {
+    backgroundColor: '#4A148C',
+  },
+  logoutButton: {
+    backgroundColor: '#B71C1C',
   },
   buttonText: {
-    color: 'black',
-    fontSize: 48, // Increased from 36 to 48
-    fontWeight: '900', // Changed from 'bold' to '900' for maximum boldness
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '900',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)', // Add shadow for more emphasis
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 3,
-  },
-  hiddenInput: {
-    position: 'absolute',
-    width: 0,
-    height: 0,
-    opacity: 0,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
 });
-export default GameSession; 
+
+export default GameSession;

@@ -3,10 +3,20 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /Users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+      // Any authenticated user can read any user profile (for leaderboard)
+      allow read: if request.auth != null;
+
+      // Users can only create/update their own document
       allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && request.auth.uid == userId;
-      allow delete: if false;
+      allow update: if request.auth != null && (
+        request.auth.uid == userId ||
+        // Admins can update any user (for reset score, etc.)
+        get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.isAdmin == true
+      );
+
+      // Only admins can delete user documents
+      allow delete: if request.auth != null &&
+        get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.isAdmin == true;
     }
   }
 }

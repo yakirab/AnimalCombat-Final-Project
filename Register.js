@@ -12,6 +12,7 @@ import backgroundImages from './backgroundImages';
 const Register = ({ navigation }) => {
   const { currentIndex } = useBackground();
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -20,6 +21,7 @@ const Register = ({ navigation }) => {
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [nameError, setNameError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
   const [birthDateError, setBirthDateError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -29,6 +31,17 @@ const Register = ({ navigation }) => {
       return false;
     } else {
       setNameError("");
+      return true;
+    }
+  };
+
+  const validateUsername = (username) => {
+    const usernamePattern = /^[a-zA-Z0-9_]{3,20}$/;
+    if (!usernamePattern.test(username)) {
+      setUsernameError("Username must be 3-20 characters (letters, numbers, underscores only)");
+      return false;
+    } else {
+      setUsernameError("");
       return true;
     }
   };
@@ -70,6 +83,7 @@ const Register = ({ navigation }) => {
     try {
       setIsLoading(true);
       const isNameValid = validateName(name);
+      const isUsernameValid = validateUsername(username);
       const isEmailValid = validateEmail(email);
       const isPasswordValid = validatePassword(password);
       const isBirthDateValid = validateBirthDate(birthDate);
@@ -80,8 +94,8 @@ const Register = ({ navigation }) => {
         return;
       }
 
-      if (!isNameValid || !isEmailValid || !isPasswordValid || !isBirthDateValid ||
-        !name || !email || !password || !confirmPassword || !birthDate) {
+      if (!isNameValid || !isUsernameValid || !isEmailValid || !isPasswordValid || !isBirthDateValid ||
+        !name || !username || !email || !password || !confirmPassword || !birthDate) {
         setIsLoading(false);
         return;
       }
@@ -98,12 +112,16 @@ const Register = ({ navigation }) => {
         const userDoc = {
           userId: user.uid,
           name,
+          username,
           email,
           birthDate: {
             year: parseInt(year),
             month: parseInt(month),
             day: parseInt(day)
           },
+          score: 0,
+          gamesPlayed: 0,
+          isAdmin: false,
           createdAt: serverTimestamp()
         };
 
@@ -143,6 +161,18 @@ const Register = ({ navigation }) => {
           style={styles.input}
         />
         {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
+
+        <TextInput
+          placeholder="Username"
+          value={username}
+          onChangeText={(text) => {
+            setUsername(text);
+            validateUsername(text);
+          }}
+          style={styles.input}
+          autoCapitalize="none"
+        />
+        {usernameError ? <Text style={styles.errorText}>{usernameError}</Text> : null}
 
         <TextInput
           placeholder="Email"
