@@ -118,8 +118,12 @@ const GameSession = () => {
   }, [navigation]);
   const handleReportPlayer = useCallback(() => {
     soundManager.playClick();
+    if (isAdmin) {
+      navigation.navigate('AdminReports');
+      return;
+    }
     navigation.navigate('ReportPlayer');
-  }, [navigation]);
+  }, [navigation, isAdmin]);
   const handleLogout = useCallback(async () => {
     const user = authentication.currentUser;
     const email = user?.email;

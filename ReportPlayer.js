@@ -25,6 +25,11 @@ const ReportPlayer = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const safeBackgrounds = useMemo(
+        () => (Array.isArray(BACKGROUND_IMAGES) && BACKGROUND_IMAGES.length > 0 ? BACKGROUND_IMAGES : [require('./assets/MenuBackGround/background/bg1.png')]),
+        []
+    );
+
     // Load all players on mount
     useEffect(() => {
         const loadPlayers = async () => {
@@ -52,14 +57,20 @@ const ReportPlayer = () => {
     }, []);
 
     // Filter players based on search query
-    useEffect(() => {
+    const applySearchFilter = useCallback(() => {
         if (!searchQuery.trim()) {
             setFilteredPlayers(allPlayers);
         } else {
             const q = searchQuery.toLowerCase();
-            setFilteredPlayers(allPlayers.filter(p => p.name.toLowerCase().includes(q)));
+            setFilteredPlayers(allPlayers.filter(p =>
+                p.name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q)
+            ));
         }
     }, [searchQuery, allPlayers]);
+
+    useEffect(() => {
+        applySearchFilter();
+    }, [applySearchFilter]);
 
     const handleSelectPlayer = useCallback((player) => {
         soundManager.playClick();
@@ -85,6 +96,7 @@ const ReportPlayer = () => {
                 reportedEmail: selectedPlayer.email,
                 reportedName: selectedPlayer.name,
                 reason: reason.trim(),
+                status: 'open',
                 createdAt: serverTimestamp()
             });
             Alert.alert('Success', 'Report submitted successfully. An admin will review it.');
@@ -129,6 +141,19 @@ const ReportPlayer = () => {
             fontSize: 16 * SCALE,
             marginBottom: 12 * SCALE,
         },
+        searchRow: {
+            flexDirection: 'row',
+            gap: 8 * SCALE,
+            marginBottom: 8 * SCALE,
+        },
+        searchButton: {
+            backgroundColor: '#1e88e5',
+            borderRadius: 12 * SCALE,
+            paddingHorizontal: 12 * SCALE,
+            justifyContent: 'center',
+            alignItems: 'center',
+        },
+        searchButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 * SCALE },
         playerItem: {
             backgroundColor: 'rgba(255,255,255,0.15)',
             paddingVertical: 12 * SCALE,
@@ -211,7 +236,7 @@ const ReportPlayer = () => {
 
     return (
         <View style={styles.container}>
-            <Image source={BACKGROUND_IMAGES[currentIndex % BACKGROUND_IMAGES.length]} style={styles.backgroundImage} />
+            <Image source={safeBackgrounds[currentIndex % safeBackgrounds.length]} style={styles.backgroundImage} />
             <View style={styles.overlay}>
                 <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
                     <Text style={styles.backBtnText}>← Back</Text>
@@ -219,13 +244,19 @@ const ReportPlayer = () => {
 
                 <Text style={styles.title}>⚠️ Report a Player</Text>
 
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder="Search player by name..."
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    autoCapitalize="none"
-                />
+                <View style={styles.searchRow}>
+                    <TextInput
+                        style={[styles.searchInput, { flex: 1, marginBottom: 0 }]}
+                        placeholder="Search player by name or email..."
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        autoCapitalize="none"
+                        onSubmitEditing={applySearchFilter}
+                    />
+                    <TouchableOpacity style={styles.searchButton} onPress={applySearchFilter}>
+                        <Text style={styles.searchButtonText}>Search</Text>
+                    </TouchableOpacity>
+                </View>
 
                 {selectedPlayer && (
                     <View style={styles.selectedInfo}>

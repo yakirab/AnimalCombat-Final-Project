@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import { getApp, getApps, initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
@@ -21,9 +21,11 @@ const firebaseConfig = {
   measurementId: extra.FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase (modular SDK for most things, compat for RTDB refs in Game.js)
-firebase.initializeApp(firebaseConfig);
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase once (modular SDK for most things, compat for RTDB refs in Game.js)
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const authentication = getAuth(app);
 
 // Persist auth between sessions (web)

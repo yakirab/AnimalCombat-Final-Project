@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, TextInput, TouchableOpacity, Image, Alert, Dime
 import CustomButton from './CustomButton';
 import { authentication } from './Config';
 import soundManager from './SoundManager';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { useBackground } from './BackgroundContext';
 import { firestore } from './Config'; // Your initialized Firestore instance
 import { encodeEmail } from './utils';
@@ -148,9 +148,12 @@ const Register = ({ navigation }) => {
     try {
       setIsLoading(true);
 
+      const cleanName = name.trim();
+      const cleanEmail = email.trim().toLowerCase();
+
       // Validate all fields synchronously (setState is async, so we compute results directly)
-      const nameValid = name.length >= 2;
-      const emailValid = emailPattern.test(email);
+      const nameValid = cleanName.length >= 2;
+      const emailValid = emailPattern.test(cleanEmail);
       const passwordValid = passwordPattern.test(password);
       const confirmValid = password === confirmPassword;
 
@@ -192,14 +195,14 @@ const Register = ({ navigation }) => {
 
       // Check all validations using computed booleans (not state)
       if (!nameValid || !emailValid || !passwordValid || !confirmValid || !birthDateValid ||
-        !name || !email || !password || !confirmPassword || !birthDate) {
+        !cleanName || !cleanEmail || !password || !confirmPassword || !birthDate) {
         setIsLoading(false);
         return;
       }
 
       try {
         // Ensure unique username (name)
-        const q = query(collection(firestore, 'Users'), where('name', '==', name));
+        const q = query(collection(firestore, 'Users'), where('name', '==', cleanName));
         const qSnap = await getDocs(q);
         if (!qSnap.empty) {
           Alert.alert('Username Taken', 'This username is already in use. Please choose another name.');
@@ -208,7 +211,7 @@ const Register = ({ navigation }) => {
         }
 
         // Create user with email and password
-        const userCredential = await createUserWithEmailAndPassword(authentication, email, password);
+        const userCredential = await createUserWithEmailAndPassword(authentication, cleanEmail, password);
         const user = userCredential.user;
 
         // Parse birth date
@@ -224,8 +227,8 @@ const Register = ({ navigation }) => {
         const initialObviousLiar = Number.isFinite(ageYears) && (ageYears > 100 || ageYears < 1.5);
         const userDoc = {
           userId: user.uid,
-          name,
-          email,
+          name: cleanName,
+          email: cleanEmail,
           birthDate: {
             year: parseInt(year),
             month: parseInt(month),
@@ -249,16 +252,24 @@ const Register = ({ navigation }) => {
         };
 
         // Save to Firestore
-        await setDoc(doc(firestore, 'Users', encodeEmail(email)), userDoc);
+        const userDocId = encodeEmail(user?.email || cleanEmail);
+        await setDoc(doc(firestore, 'Users', userDocId), userDoc);
+        const writeCheck = await getDoc(doc(firestore, 'Users', userDocId));
+        if (!writeCheck.exists()) {
+          throw new Error('Account was created but user profile was not saved');
+        }
+
+        // Registration should return to Login, not keep the user signed in.
+        await signOut(authentication);
 
         const postMsg = initialObviousLiar
           ? 'Registration successful!\n\n🏆 Achievement Unlocked: "Obvious Liar"'
           : 'Registration successful!';
         Alert.alert('Success', postMsg);
-        // Faster navigation
-        setTimeout(() => {
-          navigation.navigate('Login');
-        }, 100);
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
       } catch (authError) {
         if (authError.code === 'auth/email-already-in-use') {
           Alert.alert('Error', 'This email is already registered. Please use a different email or login.');

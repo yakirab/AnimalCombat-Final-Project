@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Dimensions, Image, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { firestore } from './Config';
 import { useBackground } from './BackgroundContext';
 import soundManager from './SoundManager';
@@ -17,24 +17,40 @@ const SCALE = Math.min(SCALE_X, SCALE_Y) * 1.5;
 const AdminReports = () => {
     const { currentIndex } = useBackground();
     const navigation = useNavigation();
+    const [players, setPlayers] = useState([]);
     const [reports, setReports] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    const safeBackgrounds = useMemo(
+        () => (Array.isArray(BACKGROUND_IMAGES) && BACKGROUND_IMAGES.length > 0
+            ? BACKGROUND_IMAGES
+            : [require('./assets/MenuBackGround/background/bg1.png')]),
+        []
+    );
 
     const loadReports = useCallback(async () => {
         try {
             setIsLoading(true);
-            const snap = await getDocs(collection(firestore, 'Reports'));
-            const list = [];
-            snap.forEach(d => {
-                list.push({ id: d.id, ...d.data() });
+            const [reportsSnap, usersSnap] = await Promise.all([
+                getDocs(collection(firestore, 'Reports')),
+                getDocs(collection(firestore, 'Users')),
+            ]);
+
+            const reportList = [];
+            reportsSnap.forEach((d) => {
+                reportList.push({ id: d.id, ...d.data() });
             });
-            // Sort by createdAt descending (newest first)
-            list.sort((a, b) => {
+            reportList.sort((a, b) => {
                 const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
                 const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
                 return bTime - aTime;
             });
-            setReports(list);
+
+            const userList = usersSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+            userList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+            setPlayers(userList);
+            setReports(reportList);
         } catch (err) {
             console.error('Failed to load reports:', err);
             Alert.alert('Error', 'Failed to load reports');
@@ -43,16 +59,20 @@ const AdminReports = () => {
         }
     }, []);
 
-    useEffect(() => { loadReports(); }, [loadReports]);
+    useEffect(() => {
+        loadReports();
+    }, [loadReports]);
 
     const handleDeleteReport = useCallback(async (reportId) => {
         Alert.alert('Delete Report', 'Are you sure you want to delete this report?', [
             { text: 'Cancel', style: 'cancel' },
             {
-                text: 'Delete', style: 'destructive', onPress: async () => {
+                text: 'Delete',
+                style: 'destructive',
+                onPress: async () => {
                     try {
                         await deleteDoc(doc(firestore, 'Reports', reportId));
-                        setReports(prev => prev.filter(r => r.id !== reportId));
+                        setReports((prev) => prev.filter((r) => r.id !== reportId));
                     } catch (err) {
                         console.error('Failed to delete report:', err);
                         Alert.alert('Error', 'Failed to delete report');
@@ -62,23 +82,92 @@ const AdminReports = () => {
         ]);
     }, []);
 
+    const handleMarkDone = useCallback(async (reportId) => {
+        try {
+            const resolvedAt = Date.now();
+            await updateDoc(doc(firestore, 'Reports', reportId), { status: 'done', resolvedAt });
+            setReports((prev) => prev.map((r) => (r.id === reportId ? { ...r, status: 'done', resolvedAt } : r)));
+        } catch (err) {
+            console.error('Failed to mark report done:', err);
+            Alert.alert('Error', 'Failed to mark report as done');
+        }
+    }, []);
+
+    const handleDeleteAllForPlayer = useCallback((playerReports, playerLabel) => {
+        if (!playerReports.length) return;
+        Alert.alert('Delete All Reports', `Delete all reports for ${playerLabel}?`, [
+            { text: 'Cancel', style: 'cancel' },
+            {
+                text: 'Delete All',
+                style: 'destructive',
+                onPress: async () => {
+                    try {
+                        const batch = writeBatch(firestore);
+                        playerReports.forEach((r) => batch.delete(doc(firestore, 'Reports', r.id)));
+                        await batch.commit();
+                        setReports((prev) => prev.filter((r) => !playerReports.some((pr) => pr.id === r.id)));
+                    } catch (err) {
+                        console.error('Failed to delete player reports:', err);
+                        Alert.alert('Error', 'Failed to delete all reports for this player');
+                    }
+                }
+            }
+        ]);
+    }, []);
+
+    const handleMarkAllDoneForPlayer = useCallback(async (playerReports) => {
+        if (!playerReports.length) return;
+        try {
+            const resolvedAt = Date.now();
+            const batch = writeBatch(firestore);
+            playerReports.forEach((r) => {
+                batch.update(doc(firestore, 'Reports', r.id), { status: 'done', resolvedAt });
+            });
+            await batch.commit();
+            setReports((prev) => prev.map((r) => (
+                playerReports.some((pr) => pr.id === r.id) ? { ...r, status: 'done', resolvedAt } : r
+            )));
+        } catch (err) {
+            console.error('Failed to mark player reports done:', err);
+            Alert.alert('Error', 'Failed to mark all reports as done');
+        }
+    }, []);
+
     const handleBack = useCallback(() => {
         soundManager.playClick();
         navigation.goBack();
     }, [navigation]);
 
-    // Group reports by reported player
     const groupedReports = useMemo(() => {
         const groups = {};
-        reports.forEach(r => {
+
+        players.forEach((p) => {
+            const key = p.email || p.name || p.id;
+            groups[key] = {
+                key,
+                name: p.name || 'Unknown',
+                email: p.email || '',
+                reports: [],
+            };
+        });
+
+        reports.forEach((r) => {
             const key = r.reportedEmail || r.reportedName || 'Unknown';
             if (!groups[key]) {
-                groups[key] = { name: r.reportedName, email: r.reportedEmail, reports: [] };
+                groups[key] = {
+                    key,
+                    name: r.reportedName || 'Unknown',
+                    email: r.reportedEmail || '',
+                    reports: [],
+                };
             }
             groups[key].reports.push(r);
         });
-        return Object.values(groups);
-    }, [reports]);
+
+        const values = Object.values(groups);
+        values.sort((a, b) => (b.reports.length - a.reports.length) || a.name.localeCompare(b.name));
+        return values;
+    }, [reports, players]);
 
     const styles = useMemo(() => StyleSheet.create({
         container: { flex: 1 },
@@ -124,6 +213,20 @@ const AdminReports = () => {
         playerHeaderName: { color: '#fff', fontSize: 18 * SCALE, fontWeight: 'bold' },
         playerHeaderEmail: { color: 'rgba(255,255,255,0.6)', fontSize: 12 * SCALE },
         reportCount: { color: '#e74c3c', fontSize: 14 * SCALE, fontWeight: 'bold' },
+        groupActionsRow: {
+            flexDirection: 'row',
+            justifyContent: 'flex-end',
+            gap: 8 * SCALE,
+            paddingHorizontal: 12 * SCALE,
+            paddingVertical: 8 * SCALE,
+        },
+        groupActionBtn: {
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            paddingVertical: 6 * SCALE,
+            paddingHorizontal: 10 * SCALE,
+            borderRadius: 6 * SCALE,
+        },
+        groupActionText: { color: '#fff', fontSize: 12 * SCALE, fontWeight: '600' },
         reportItem: {
             padding: 12 * SCALE,
             borderBottomWidth: 1,
@@ -131,15 +234,27 @@ const AdminReports = () => {
         },
         reportReason: { color: '#fff', fontSize: 14 * SCALE, marginBottom: 4 * SCALE },
         reportMeta: { color: 'rgba(255,255,255,0.5)', fontSize: 11 * SCALE },
+        statusText: { color: '#ffd166', fontSize: 11 * SCALE, marginTop: 4 * SCALE, fontWeight: '700' },
+        reportActionsRow: {
+            flexDirection: 'row',
+            gap: 8 * SCALE,
+            marginTop: 6 * SCALE,
+            justifyContent: 'flex-end',
+        },
         deleteBtn: {
             backgroundColor: 'rgba(231,76,60,0.6)',
             paddingVertical: 6 * SCALE,
             paddingHorizontal: 12 * SCALE,
             borderRadius: 6 * SCALE,
-            alignSelf: 'flex-end',
-            marginTop: 6 * SCALE,
         },
         deleteBtnText: { color: '#fff', fontSize: 12 * SCALE, fontWeight: '600' },
+        doneBtn: {
+            backgroundColor: 'rgba(76,175,80,0.7)',
+            paddingVertical: 6 * SCALE,
+            paddingHorizontal: 12 * SCALE,
+            borderRadius: 6 * SCALE,
+        },
+        doneBtnText: { color: '#fff', fontSize: 12 * SCALE, fontWeight: '600' },
         emptyText: { color: 'rgba(255,255,255,0.5)', textAlign: 'center', fontSize: 16 * SCALE, marginTop: 40 * SCALE },
         statsRow: {
             flexDirection: 'row',
@@ -171,47 +286,70 @@ const AdminReports = () => {
                 </View>
                 <Text style={styles.reportCount}>{group.reports.length} report{group.reports.length !== 1 ? 's' : ''}</Text>
             </View>
-            {group.reports.map(report => (
+
+            {group.reports.length > 0 && (
+                <View style={styles.groupActionsRow}>
+                    <TouchableOpacity style={styles.groupActionBtn} onPress={() => handleMarkAllDoneForPlayer(group.reports)}>
+                        <Text style={styles.groupActionText}>Mark All Done</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.groupActionBtn, { backgroundColor: 'rgba(231,76,60,0.6)' }]}
+                        onPress={() => handleDeleteAllForPlayer(group.reports, group.name)}
+                    >
+                        <Text style={styles.groupActionText}>Delete All</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {group.reports.map((report) => (
                 <View key={report.id} style={styles.reportItem}>
                     <Text style={styles.reportReason}>"{report.reason}"</Text>
                     <Text style={styles.reportMeta}>
-                        Reported by: {report.reporterName} • {formatDate(report.createdAt)}
+                        Reported by: {report.reporterName} | {formatDate(report.createdAt)}
                     </Text>
-                    <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeleteReport(report.id)}>
-                        <Text style={styles.deleteBtnText}>🗑 Delete Report</Text>
-                    </TouchableOpacity>
+                    <Text style={styles.statusText}>Status: {(report.status || 'open').toUpperCase()}</Text>
+                    <View style={styles.reportActionsRow}>
+                        {report.status !== 'done' && (
+                            <TouchableOpacity style={styles.doneBtn} onPress={() => handleMarkDone(report.id)}>
+                                <Text style={styles.doneBtnText}>Mark Done</Text>
+                            </TouchableOpacity>
+                        )}
+                        <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeleteReport(report.id)}>
+                            <Text style={styles.deleteBtnText}>Delete Report</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             ))}
         </View>
-    ), [styles, handleDeleteReport, formatDate]);
+    ), [styles, handleDeleteReport, handleMarkDone, handleDeleteAllForPlayer, handleMarkAllDoneForPlayer, formatDate]);
 
     return (
         <View style={styles.container}>
-            <Image source={BACKGROUND_IMAGES[currentIndex % BACKGROUND_IMAGES.length]} style={styles.backgroundImage} />
+            <Image source={safeBackgrounds[currentIndex % safeBackgrounds.length]} style={styles.backgroundImage} />
             <View style={styles.overlay}>
                 <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
-                    <Text style={styles.backBtnText}>← Back</Text>
+                    <Text style={styles.backBtnText}>Back</Text>
                 </TouchableOpacity>
 
-                <Text style={styles.title}>📋 Player Reports</Text>
+                <Text style={styles.title}>Player Reports</Text>
 
                 <View style={styles.statsRow}>
                     <View style={styles.statBadge}>
                         <Text style={styles.statText}>{reports.length} Total Reports</Text>
                     </View>
                     <View style={styles.statBadge}>
-                        <Text style={styles.statText}>{groupedReports.length} Reported Players</Text>
+                        <Text style={styles.statText}>{players.length} Total Players</Text>
                     </View>
                 </View>
 
                 {isLoading ? (
                     <ActivityIndicator size="large" color="#fff" />
                 ) : groupedReports.length === 0 ? (
-                    <Text style={styles.emptyText}>No reports yet ✅</Text>
+                    <Text style={styles.emptyText}>No players found</Text>
                 ) : (
                     <FlatList
                         data={groupedReports}
-                        keyExtractor={(item, idx) => item.email || String(idx)}
+                        keyExtractor={(item) => item.key}
                         renderItem={renderGroup}
                     />
                 )}
