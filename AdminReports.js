@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Dimensions, Image, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { collection, getDocs, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { firestore } from './Config';
 import { useBackground } from './BackgroundContext';
 import soundManager from './SoundManager';
@@ -28,40 +28,46 @@ const AdminReports = () => {
         []
     );
 
-    const loadReports = useCallback(async () => {
-        try {
-            setIsLoading(true);
-            const [reportsSnap, usersSnap] = await Promise.all([
-                getDocs(collection(firestore, 'Reports')),
-                getDocs(collection(firestore, 'Users')),
-            ]);
-
-            const reportList = [];
-            reportsSnap.forEach((d) => {
-                reportList.push({ id: d.id, ...d.data() });
-            });
-            reportList.sort((a, b) => {
-                const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
-                const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
-                return bTime - aTime;
-            });
-
-            const userList = usersSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
-            userList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
-            setPlayers(userList);
-            setReports(reportList);
-        } catch (err) {
-            console.error('Failed to load reports:', err);
-            Alert.alert('Error', 'Failed to load reports');
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
     useEffect(() => {
-        loadReports();
-    }, [loadReports]);
+        setIsLoading(true);
+        const unsubUsers = onSnapshot(
+            collection(firestore, 'Users'),
+            (usersSnap) => {
+                const userList = usersSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+                userList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                setPlayers(userList);
+            },
+            (err) => {
+                console.error('Failed to subscribe users:', err);
+                Alert.alert('Error', 'Failed to load players');
+                setIsLoading(false);
+            }
+        );
+
+        const unsubReports = onSnapshot(
+            collection(firestore, 'Reports'),
+            (reportsSnap) => {
+                const reportList = reportsSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+                reportList.sort((a, b) => {
+                    const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
+                    const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
+                    return bTime - aTime;
+                });
+                setReports(reportList);
+                setIsLoading(false);
+            },
+            (err) => {
+                console.error('Failed to subscribe reports:', err);
+                Alert.alert('Error', 'Failed to load reports');
+                setIsLoading(false);
+            }
+        );
+
+        return () => {
+            unsubUsers();
+            unsubReports();
+        };
+    }, []);
 
     const handleDeleteReport = useCallback(async (reportId) => {
         Alert.alert('Delete Report', 'Are you sure you want to delete this report?', [

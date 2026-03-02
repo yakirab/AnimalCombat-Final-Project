@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Alert, Dimensions, Image, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { collection, getDocs, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 import { firestore, authentication } from './Config';
 import { useBackground } from './BackgroundContext';
 import soundManager from './SoundManager';
@@ -32,15 +33,17 @@ const ReportPlayer = () => {
         []
     );
 
-    // Load all players on mount
+    // Load all players after auth is ready
     useEffect(() => {
-        const loadPlayers = async () => {
+        let isMounted = true;
+
+        const loadPlayers = async (currentUser) => {
             try {
-                const current = authentication.currentUser;
-                const currentEmail = current?.email || '';
+                const current = currentUser || authentication.currentUser;
+                const currentUid = current?.uid || '';
+                const currentEmail = (current?.email || '').toLowerCase();
                 const encoded = encodeEmail(currentEmail);
-                const normalized = currentEmail.toLowerCase();
-                const isAdminEmail = ADMIN_EMAILS.some((adminEmail) => adminEmail.toLowerCase() === normalized);
+                const isAdminEmail = ADMIN_EMAILS.some((adminEmail) => adminEmail.toLowerCase() === currentEmail);
                 const [userSnap, adminSnap] = await Promise.all([
                     encoded ? getDoc(doc(firestore, 'Users', encoded)) : Promise.resolve(null),
                     encoded ? getDoc(doc(firestore, 'Admins', encoded)) : Promise.resolve(null),
@@ -56,24 +59,50 @@ const ReportPlayer = () => {
 
                 const snap = await getDocs(collection(firestore, 'Users'));
                 const players = [];
-                snap.forEach(doc => {
-                    const data = doc.data();
+                snap.forEach((userDoc) => {
+                    const data = userDoc.data() || {};
+                    const emailFromDoc = (data.email || '').toLowerCase();
+                    const fallbackEmail = userDoc.id.includes(',') ? userDoc.id.replace(/,/g, '.') : '';
+                    const email = emailFromDoc || fallbackEmail;
+                    const isSelfByUid = !!currentUid && data.userId === currentUid;
+                    const isSelfByEmail = !!currentEmail && email === currentEmail;
                     // Don't show current user in the list
-                    if (data.email !== currentEmail) {
-                        players.push({ id: doc.id, name: data.name || 'Unknown', email: data.email || '' });
+                    if (!isSelfByUid && !isSelfByEmail) {
+                        players.push({ id: userDoc.id, name: data.name || 'Unknown', email });
                     }
                 });
-                setAllPlayers(players);
-                setFilteredPlayers(players);
+                if (isMounted) {
+                    setAllPlayers(players);
+                    setFilteredPlayers(players);
+                }
             } catch (err) {
                 console.error('Failed to load players:', err);
-                Alert.alert('Error', 'Failed to load players');
+                Alert.alert('Error', `Failed to load players: ${err?.message || 'Unknown error'}`);
             } finally {
-                setIsLoading(false);
+                if (isMounted) {
+                    setIsLoading(false);
+                }
             }
         };
-        loadPlayers();
-    }, []);
+
+        const unsub = onAuthStateChanged(authentication, (user) => {
+            if (!user) {
+                if (isMounted) {
+                    setAllPlayers([]);
+                    setFilteredPlayers([]);
+                    setIsLoading(false);
+                }
+                return;
+            }
+            setIsLoading(true);
+            loadPlayers(user);
+        });
+
+        return () => {
+            isMounted = false;
+            unsub();
+        };
+    }, [navigation]);
 
     // Filter players based on search query
     const applySearchFilter = useCallback(() => {
@@ -112,6 +141,7 @@ const ReportPlayer = () => {
             await addDoc(collection(firestore, 'Reports'), {
                 reporterEmail: currentUser?.email || '',
                 reporterName: currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Unknown',
+                reportedUserId: selectedPlayer.id,
                 reportedEmail: selectedPlayer.email,
                 reportedName: selectedPlayer.name,
                 reason: reason.trim(),
@@ -122,7 +152,11 @@ const ReportPlayer = () => {
             navigation.goBack();
         } catch (err) {
             console.error('Failed to submit report:', err);
-            Alert.alert('Error', 'Failed to submit report. Please try again.');
+            if (err?.code === 'permission-denied') {
+                Alert.alert('Permission Error', 'Firestore rules blocked this report write (permission-denied).');
+            } else {
+                Alert.alert('Error', `Failed to submit report: ${err?.message || 'Unknown error'}`);
+            }
         } finally {
             setIsSubmitting(false);
         }
