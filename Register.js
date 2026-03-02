@@ -147,18 +147,51 @@ const Register = ({ navigation }) => {
   const handleRegister = useCallback(async () => {
     try {
       setIsLoading(true);
-      validateName(name);
-      validateEmail(email);
-      validatePassword(password);
-      validateBirthDate(birthDate);
 
-      if (password !== confirmPassword) {
-        setConfirmPasswordError("Passwords do not match.");
-        setIsLoading(false);
-        return;
+      // Validate all fields synchronously (setState is async, so we compute results directly)
+      const nameValid = name.length >= 2;
+      const emailValid = emailPattern.test(email);
+      const passwordValid = passwordPattern.test(password);
+      const confirmValid = password === confirmPassword;
+
+      // Validate birth date inline
+      let birthDateValid = false;
+      let birthDateMsg = '';
+      if (!datePattern.test(birthDate)) {
+        birthDateMsg = 'Please enter date in YYYY-MM-DD format';
+      } else {
+        const [yStr, mStr, dStr] = birthDate.split('-');
+        const year = parseInt(yStr, 10);
+        const month = parseInt(mStr, 10);
+        const day = parseInt(dStr, 10);
+        if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+          birthDateMsg = 'Invalid date components';
+        } else if (month < 1 || month > 12) {
+          birthDateMsg = 'Month must be between 1 and 12';
+        } else {
+          const daysInMonth = new Date(year, month, 0).getDate();
+          if (day < 1 || day > daysInMonth) {
+            birthDateMsg = `Day must be between 1 and ${daysInMonth}`;
+          } else {
+            const birth = new Date(year, month - 1, day);
+            if (birth.getTime() > Date.now()) {
+              birthDateMsg = 'Birth date cannot be in the future';
+            } else {
+              birthDateValid = true;
+            }
+          }
+        }
       }
 
-      if (nameError || emailError || passwordError || confirmPasswordError || birthDateError ||
+      // Set all error states for UI display
+      setNameError(nameValid ? '' : 'Name must be at least 2 characters long');
+      setEmailError(emailValid ? '' : "Invalid email format. Please include '@' and a domain.");
+      setPasswordError(passwordValid ? '' : 'Password must be 6-12 characters long and include at least one lowercase letter, one uppercase letter, one number, and one special character.');
+      setConfirmPasswordError(confirmValid ? '' : 'Passwords do not match.');
+      setBirthDateError(birthDateMsg);
+
+      // Check all validations using computed booleans (not state)
+      if (!nameValid || !emailValid || !passwordValid || !confirmValid || !birthDateValid ||
         !name || !email || !password || !confirmPassword || !birthDate) {
         setIsLoading(false);
         return;

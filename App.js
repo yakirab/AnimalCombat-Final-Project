@@ -13,6 +13,8 @@ import AudioUnlock from './AudioUnlock';
 import Game from './Game';
 import Leaderboard from './Leaderboard';
 import AdminPlayerList from './AdminPlayerList';
+import ReportPlayer from './ReportPlayer';
+import AdminReports from './AdminReports';
 import { preloadAllAssets } from './AssetPreloader';
 
 
@@ -88,6 +90,14 @@ export default function App() {
           <Stack.Screen
             name="AdminPlayerList"
             component={AdminPlayerList}
+          />
+          <Stack.Screen
+            name="ReportPlayer"
+            component={ReportPlayer}
+          />
+          <Stack.Screen
+            name="AdminReports"
+            component={AdminReports}
           />
         </Stack.Navigator>
       </NavigationContainer>

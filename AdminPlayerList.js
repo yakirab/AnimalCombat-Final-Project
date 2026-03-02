@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { firestore } from './Config';
 import { encodeEmail } from './utils';
+import soundManager from './SoundManager';
 
 const { width, height } = Dimensions.get('window');
 const NORMAL_WIDTH = 1929;
@@ -158,6 +159,9 @@ const AdminPlayerList = () => {
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Admin · Players</Text>
+        <TouchableOpacity style={styles.refreshBtn} onPress={() => { soundManager.playClick(); navigation.navigate('AdminReports'); }}>
+          <Text style={styles.refreshText}>View Reports</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.refreshBtn} onPress={fetchPlayers}>
           <Text style={styles.refreshText}>Refresh</Text>
         </TouchableOpacity>

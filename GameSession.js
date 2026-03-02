@@ -116,6 +116,10 @@ const GameSession = () => {
     soundManager.playClick();
     navigation.navigate('AdminPlayerList');
   }, [navigation]);
+  const handleReportPlayer = useCallback(() => {
+    soundManager.playClick();
+    navigation.navigate('ReportPlayer');
+  }, [navigation]);
   const handleLogout = useCallback(async () => {
     const user = authentication.currentUser;
     const email = user?.email;
@@ -347,6 +351,13 @@ const GameSession = () => {
             <Text style={dynamicStyles.buttonText}>Admin</Text>
           </TouchableOpacity>
         )}
+        <TouchableOpacity
+          style={dynamicStyles.button}
+          onPress={handleReportPlayer}
+          activeOpacity={0.8}
+        >
+          <Text style={dynamicStyles.buttonText}>Report Player</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={dynamicStyles.logoutButton}
           onPress={handleLogout}
