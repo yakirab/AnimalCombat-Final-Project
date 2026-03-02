@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() && request.auth.token.email in ["yakir.abramovich@gmail.com"];
+    }
+
+    match /Users/{userDocId} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update: if request.auth.uid == userDocId || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /Reports/{reportId} {
+      allow create: if signedIn();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /Admins/{adminDocId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
