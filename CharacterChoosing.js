@@ -582,7 +582,10 @@ const CharacterChoosing = () => {
       if (!me?.email) return;
       await updateDoc(doc(firestore, 'Users', encodeEmail(me.email)), { selectedTitle: title });
       setSelectedTitle(title);
-    } catch (err) { console.error('Failed to update title:', err); }
+    } catch (err) {
+      console.error('Failed to update title:', err);
+      Alert.alert('Error', `Failed to update title: ${err?.message || 'Unknown error'}`);
+    }
   };
 
   return (
