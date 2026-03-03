@@ -10,7 +10,10 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if signedIn();
       // User docs are keyed by encoded email, so ownership is determined by stored userId field.
-      allow update: if (signedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow update: if (signedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.email == request.auth.token.email
+      )) || isAdmin();
       allow delete: if isAdmin();
     }
 

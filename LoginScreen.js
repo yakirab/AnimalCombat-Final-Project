@@ -132,6 +132,8 @@ const LoginScreen = ({ navigation }) => {
         const now = Date.now();
         if (encoded) {
           setDoc(doc(firestore, 'Users', encoded), {
+            userId: user?.uid || null,
+            email: user?.email || email,
             lastLogin: now,
             lastLoginAt: now,
           }, { merge: true }).catch((err) => console.warn('Failed to record login time', err));
