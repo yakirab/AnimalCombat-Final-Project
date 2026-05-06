@@ -6,7 +6,7 @@
 // Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
 
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity, TextInput, Image, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, TextInput, Image, Platform, ScrollView, Alert } from 'react-native';
 import { useBackground } from './BackgroundContext';
 import { authentication, firestore } from './Config';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -16,11 +16,20 @@ import BACKGROUND_IMAGES from './backgroundImages';
 
 const { width, height } = Dimensions.get('window');
 const SCALE = responsiveScale(width, height, 1, 0.82, 1.08);
+const DEFAULT_CONTROLS = { left: 'a', right: 'd', block: 'f', light: 'e', heavy: 'q', special: 'r' };
+const CONTROL_FIELDS = [
+  { key: 'left', label: 'Move Left' },
+  { key: 'right', label: 'Move Right' },
+  { key: 'block', label: 'Block' },
+  { key: 'light', label: 'Light' },
+  { key: 'heavy', label: 'Heavy' },
+  { key: 'special', label: 'Special' },
+];
 
 const Settings = ({ navigation }) => {
   const { currentIndex } = useBackground();
   // Keyboard bindings used by gameplay input handlers.
-  const [controls, setControls] = useState({ left: 'a', right: 'd', block: 'f', light: 'e', heavy: 'q', special: 'r' });
+  const [controls, setControls] = useState(DEFAULT_CONTROLS);
   // Audio levels are normalized floats in [0, 1].
   const [sfxVolume, setSfxVolume] = useState(1);
   const [bgMusicVolume, setBgMusicVolume] = useState(1);
@@ -33,6 +42,25 @@ const Settings = ({ navigation }) => {
 
   // Restricts each control binding to a single lowercase character.
   const normalizeKey = useCallback((k) => (k || '').toString().trim().toLowerCase().slice(0, 1), []);
+
+  const duplicateControls = useMemo(() => {
+    const seen = new Map();
+    const duplicates = [];
+    CONTROL_FIELDS.forEach(({ key, label }) => {
+      const value = normalizeKey(controls[key]);
+      if (!value) return;
+      if (seen.has(value)) {
+        duplicates.push(`${seen.get(value)} and ${label} both use "${value.toUpperCase()}"`);
+      } else {
+        seen.set(value, label);
+      }
+    });
+    return duplicates;
+  }, [controls, normalizeKey]);
+
+  const handleControlChange = useCallback((key, value) => {
+    setControls(prev => ({ ...prev, [key]: normalizeKey(value) }));
+  }, [normalizeKey]);
 
   useEffect(() => {
     // Loads persisted settings from Firestore and applies them to local state and audio engine.
@@ -90,9 +118,27 @@ const Settings = ({ navigation }) => {
     try {
       const me = authentication.currentUser;
       if (!me?.email) return;
+      const normalizedControls = CONTROL_FIELDS.reduce((acc, field) => {
+        acc[field.key] = normalizeKey(controls[field.key]) || DEFAULT_CONTROLS[field.key];
+        return acc;
+      }, {});
+      const duplicateMessages = [];
+      const used = new Map();
+      CONTROL_FIELDS.forEach(({ key, label }) => {
+        const value = normalizedControls[key];
+        if (used.has(value)) {
+          duplicateMessages.push(`${used.get(value)} and ${label} both use "${value.toUpperCase()}"`);
+        } else {
+          used.set(value, label);
+        }
+      });
+      if (duplicateMessages.length > 0) {
+        Alert.alert('Duplicate Controls', duplicateMessages.join('\n'));
+        return;
+      }
       const ref = doc(firestore, 'Users', encodeEmail(me.email));
       const payload = {
-        controls,
+        controls: normalizedControls,
         sfxVolume: Math.max(0, Math.min(1, sfxVolume)),
         bgMusicVolume: Math.max(0, Math.min(1, bgMusicVolume)),
         outputDeviceId: selectedDeviceId || ''
@@ -106,7 +152,7 @@ const Settings = ({ navigation }) => {
 
       navigation.goBack();
     } catch (err) { console.error('Failed to save settings:', err); }
-  }, [controls, sfxVolume, bgMusicVolume, selectedDeviceId, navigation]);
+  }, [controls, sfxVolume, bgMusicVolume, selectedDeviceId, navigation, normalizeKey]);
 
   const styles = useMemo(() => StyleSheet.create({
     container: { flex: 1 },
@@ -125,6 +171,7 @@ const Settings = ({ navigation }) => {
     actionBtn: { minWidth: 100 * SCALE, alignItems: 'center', paddingVertical: 10 * SCALE, paddingHorizontal: 18 * SCALE, borderRadius: 10 * SCALE, marginLeft: 10 * SCALE },
     actionBtnText: { fontSize: 16 * SCALE, fontWeight: '700', color: '#2c3e50' },
     select: { flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8 * SCALE, paddingHorizontal: 12 * SCALE, paddingVertical: 8 * SCALE, backgroundColor: '#f9f9f9' },
+    validationText: { color: '#c0392b', fontSize: 14 * SCALE, fontWeight: '700', marginBottom: 10 * SCALE, textAlign: 'center' },
   }), []);
 
   return (
@@ -134,30 +181,22 @@ const Settings = ({ navigation }) => {
       <View style={styles.card}>
         <Text style={styles.title}>Settings</Text>
 
-        <View style={styles.row}>
-          <Text style={styles.label}>Move Left</Text>
-          <TextInput value={controls.left} onChangeText={(t) => setControls(prev => ({ ...prev, left: normalizeKey(t) }))} style={styles.input} maxLength={1} autoCapitalize='none' />
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Move Right</Text>
-          <TextInput value={controls.right} onChangeText={(t) => setControls(prev => ({ ...prev, right: normalizeKey(t) }))} style={styles.input} maxLength={1} autoCapitalize='none' />
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Block</Text>
-          <TextInput value={controls.block} onChangeText={(t) => setControls(prev => ({ ...prev, block: normalizeKey(t) }))} style={styles.input} maxLength={1} autoCapitalize='none' />
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Light</Text>
-          <TextInput value={controls.light} onChangeText={(t) => setControls(prev => ({ ...prev, light: normalizeKey(t) }))} style={styles.input} maxLength={1} autoCapitalize='none' />
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Heavy</Text>
-          <TextInput value={controls.heavy} onChangeText={(t) => setControls(prev => ({ ...prev, heavy: normalizeKey(t) }))} style={styles.input} maxLength={1} autoCapitalize='none' />
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Special</Text>
-          <TextInput value={controls.special} onChangeText={(t) => setControls(prev => ({ ...prev, special: normalizeKey(t) }))} style={styles.input} maxLength={1} autoCapitalize='none' />
-        </View>
+        {CONTROL_FIELDS.map(({ key, label }) => (
+          <View key={key} style={styles.row}>
+            <Text style={styles.label}>{label}</Text>
+            <TextInput
+              value={controls[key]}
+              onChangeText={(t) => handleControlChange(key, t)}
+              style={styles.input}
+              maxLength={1}
+              autoCapitalize='none'
+            />
+          </View>
+        ))}
+
+        {duplicateControls.length > 0 && (
+          <Text style={styles.validationText}>{duplicateControls[0]}</Text>
+        )}
 
         <View style={[styles.row, { alignItems: 'center' }]}>
           <Text style={styles.label}>SFX Volume</Text>
@@ -241,7 +280,7 @@ const Settings = ({ navigation }) => {
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#bdc3c7' }]} onPress={() => { soundManager.playClick(); navigation.goBack(); }}>
             <Text style={styles.actionBtnText}>Cancel</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#27ae60' }]} onPress={() => { soundManager.playClick(); save(); }}>
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: duplicateControls.length ? '#95a5a6' : '#27ae60' }]} onPress={() => { soundManager.playClick(); save(); }}>
             <Text style={[styles.actionBtnText, { color: 'white' }]}>Save</Text>
           </TouchableOpacity>
         </View>

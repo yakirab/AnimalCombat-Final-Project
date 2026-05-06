@@ -13,7 +13,7 @@ import { Asset } from 'expo-asset';
 import { useBackground } from './BackgroundContext';
 
 import { authentication, firebase, database, firestore } from './Config';
-import { doc, getDoc, updateDoc, setDoc, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, arrayUnion, onSnapshot } from 'firebase/firestore';
 import { encodeEmail } from './utils';
 
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -507,6 +507,28 @@ const Game = () => {
       special: toKey(controls?.special, 'r'),
     };
   }, []);
+
+  const controlsHelpText = useMemo(() => {
+    const keyLabel = (key) => (key || '').toString().toUpperCase();
+    return `${keyLabel(keybinds.left)}/${keyLabel(keybinds.right)}: Move | ${keyLabel(keybinds.light)}: Light | ${keyLabel(keybinds.heavy)}: Heavy | ${keyLabel(keybinds.block)}: Block | ${keyLabel(keybinds.special)}: Special`;
+  }, [keybinds]);
+
+  useEffect(() => {
+    const me = authentication.currentUser;
+    if (!me?.email) return undefined;
+
+    const unsubscribe = onSnapshot(doc(firestore, 'Users', encodeEmail(me.email)), (snap) => {
+      const data = snap.exists() ? snap.data() : null;
+      if (data?.controls) {
+        setKeybinds(prev => ({ ...prev, ...normalizeControls(data.controls) }));
+      }
+    }, (err) => {
+      console.warn('Failed to listen for control changes:', err);
+    });
+
+    return unsubscribe;
+  }, [normalizeControls]);
+
   const playerMovesUsedRef = useRef({ light: 0, heavy: 0, special: 0 });
   const hasFinalizedRef = useRef(false);
 
@@ -2186,7 +2208,7 @@ const Game = () => {
 
       {/* Controls Display */}
       <View style={styles.controlsContainer}>
-        <Text style={styles.controlsText}>A/D: Move | E: Light | Q: Heavy | F: Block | R: Special</Text>
+        <Text style={styles.controlsText}>{controlsHelpText}</Text>
       </View>
 
       {/* Mobile HUD for on-screen controls */}
