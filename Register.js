@@ -1,22 +1,24 @@
+﻿// File Overview: Register.js
+// What this file is: Account creation and initial profile data setup.
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 import React, { useState, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Image, Alert, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Image, Alert, Dimensions, ScrollView } from 'react-native';
 import CustomButton from './CustomButton';
 import { authentication } from './Config';
 import soundManager from './SoundManager';
 import { createUserWithEmailAndPassword, deleteUser, signOut } from 'firebase/auth';
 import { useBackground } from './BackgroundContext';
 import { firestore } from './Config'; // Your initialized Firestore instance
-import { encodeEmail } from './utils';
+import { encodeEmail, responsiveScale } from './utils';
 import { doc, setDoc, serverTimestamp, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 const { width, height } = Dimensions.get('window');
 
-// Screen scaling constants (based on 1929x2000 as normal size)
-const NORMAL_WIDTH = 1929;
-const NORMAL_HEIGHT = 2000;
-const SCALE_X = width / NORMAL_WIDTH;
-const SCALE_Y = height / NORMAL_HEIGHT;
-const SCALE = Math.min(SCALE_X, SCALE_Y) * 1.5; // Use the smaller scale to maintain proportions, increased by 1.5x
+const SCALE = responsiveScale(width, height, 1, 0.82, 1.08);
 
 const Register = ({ navigation }) => {
   const { currentIndex } = useBackground();
@@ -264,7 +266,7 @@ const Register = ({ navigation }) => {
         await signOut(authentication);
 
         const postMsg = initialObviousLiar
-          ? 'Registration successful!\n\n🏆 Achievement Unlocked: "Obvious Liar"'
+          ? 'Registration successful!\n\n\uD83C\uDFC6 Achievement Unlocked: "Obvious Liar"'
           : 'Registration successful!';
         Alert.alert('Success', postMsg);
         navigation.reset({
@@ -327,10 +329,11 @@ const Register = ({ navigation }) => {
       resizeMode: 'cover',
     },
     contentContainer: {
-      flex: 1,
+      flexGrow: 1,
       alignItems: 'center',
       justifyContent: 'center',
       padding: 20 * SCALE,
+      paddingVertical: 72 * SCALE,
       zIndex: 1,
     },
     title: {
@@ -343,12 +346,15 @@ const Register = ({ navigation }) => {
       textShadowRadius: 4,
     },
     input: {
-      width: '80%',
+      width: '86%',
+      maxWidth: 460 * SCALE,
+      minWidth: 270 * SCALE,
       borderWidth: 1,
       borderColor: '#ced4da',
-      borderRadius: 25 * SCALE,
-      marginBottom: 15 * SCALE,
-      padding: 15 * SCALE,
+      borderRadius: 14 * SCALE,
+      marginBottom: 10 * SCALE,
+      paddingVertical: 11 * SCALE,
+      paddingHorizontal: 16 * SCALE,
       backgroundColor: '#fff',
       fontSize: 16 * SCALE,
       shadowColor: '#000',
@@ -363,6 +369,8 @@ const Register = ({ navigation }) => {
       fontSize: 14 * SCALE,
       textAlign: 'center',
       paddingHorizontal: 20 * SCALE,
+      width: '90%',
+      maxWidth: 560 * SCALE,
     },
     loginContainer: {
       marginTop: 20 * SCALE,
@@ -376,18 +384,18 @@ const Register = ({ navigation }) => {
     },
     muteButton: {
       position: 'absolute',
-      top: 40 * SCALE,
+      top: 24 * SCALE,
       right: 20 * SCALE,
-      width: 50 * SCALE,
-      height: 50 * SCALE,
+      width: 44 * SCALE,
+      height: 44 * SCALE,
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      borderRadius: 25 * SCALE,
+      borderRadius: 22 * SCALE,
       justifyContent: 'center',
       alignItems: 'center',
       zIndex: 1000,
     },
     muteButtonText: {
-      fontSize: 24 * SCALE,
+      fontSize: 22 * SCALE,
       color: 'white',
     },
   }), [SCALE]);
@@ -407,11 +415,14 @@ const Register = ({ navigation }) => {
         onPress={toggleMute}
       >
         <Text style={dynamicStyles.muteButtonText}>
-          {isMuted ? '🔇' : '🔊'}
+          {isMuted ? '\uD83D\uDD07' : '\uD83D\uDD0A'}
         </Text>
       </TouchableOpacity>
 
-      <View style={dynamicStyles.contentContainer}>
+      <ScrollView
+        contentContainerStyle={dynamicStyles.contentContainer}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={dynamicStyles.title}>Register</Text>
 
         <TextInput
@@ -473,9 +484,10 @@ const Register = ({ navigation }) => {
           onPress={handleRegister}
           disabled={isLoading}
         />
-      </View>
+      </ScrollView>
     </View>
   );
 };
 
 export default Register; 
+

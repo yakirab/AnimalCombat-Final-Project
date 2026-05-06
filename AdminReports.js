@@ -1,3 +1,10 @@
+﻿// File Overview: AdminReports.js
+// What this file is: Admin moderation queue for reviewing and resolving reports.
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Dimensions, Image, ActivityIndicator, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -6,21 +13,20 @@ import { firestore } from './Config';
 import { useBackground } from './BackgroundContext';
 import soundManager from './SoundManager';
 import BACKGROUND_IMAGES from './backgroundImages';
+import { responsiveScale } from './utils';
 
 const { width, height } = Dimensions.get('window');
-const NORMAL_WIDTH = 1929;
-const NORMAL_HEIGHT = 2000;
-const SCALE_X = width / NORMAL_WIDTH;
-const SCALE_Y = height / NORMAL_HEIGHT;
-const SCALE = Math.min(SCALE_X, SCALE_Y) * 1.5;
+const SCALE = responsiveScale(width, height, 1, 0.78, 1.05);
 
 const AdminReports = () => {
     const { currentIndex } = useBackground();
     const navigation = useNavigation();
+    // `players` helps map reports to user details; `reports` is the moderation queue.
     const [players, setPlayers] = useState([]);
     const [reports, setReports] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    // Centralized error formatter so every admin action reports failures consistently.
     const showActionError = useCallback((actionLabel, err) => {
         console.error(`${actionLabel} failed:`, err);
         if (err?.code === 'permission-denied') {
@@ -30,6 +36,7 @@ const AdminReports = () => {
         Alert.alert('Error', `${actionLabel} failed: ${err?.message || 'Unknown error'}`);
     }, []);
 
+    // Fallback guard in case background list is empty or unavailable.
     const safeBackgrounds = useMemo(
         () => (Array.isArray(BACKGROUND_IMAGES) && BACKGROUND_IMAGES.length > 0
             ? BACKGROUND_IMAGES
@@ -39,6 +46,7 @@ const AdminReports = () => {
 
     useEffect(() => {
         setIsLoading(true);
+        // Live users subscription keeps names/emails in sync with latest profile edits.
         const unsubUsers = onSnapshot(
             collection(firestore, 'Users'),
             (usersSnap) => {
@@ -53,6 +61,7 @@ const AdminReports = () => {
             }
         );
 
+        // Live reports subscription updates moderation queue in real time.
         const unsubReports = onSnapshot(
             collection(firestore, 'Reports'),
             (reportsSnap) => {
@@ -73,11 +82,13 @@ const AdminReports = () => {
         );
 
         return () => {
+            // Always unsubscribe listeners on unmount to avoid memory leaks.
             unsubUsers();
             unsubReports();
         };
     }, []);
 
+    // Deletes a single report after explicit user confirmation.
     const handleDeleteReport = useCallback(async (reportId) => {
         const doDelete = async () => {
             try {
@@ -100,6 +111,7 @@ const AdminReports = () => {
         }
     }, [showActionError]);
 
+    // Marks one report as resolved while keeping it in history for auditability.
     const handleMarkDone = useCallback(async (reportId) => {
         try {
             const resolvedAt = Date.now();
@@ -110,6 +122,7 @@ const AdminReports = () => {
         }
     }, [showActionError]);
 
+    // Batch delete path for all reports belonging to one reported player.
     const handleDeleteAllForPlayer = useCallback(async (playerReports, playerLabel) => {
         if (!playerReports.length) return;
         const doDeleteAll = async () => {
@@ -135,6 +148,7 @@ const AdminReports = () => {
         }
     }, [showActionError]);
 
+    // Batch "resolved" action for all reports of a given player.
     const handleMarkAllDoneForPlayer = useCallback(async (playerReports) => {
         if (!playerReports.length) return;
         try {
@@ -157,6 +171,7 @@ const AdminReports = () => {
         navigation.goBack();
     }, [navigation]);
 
+    // Groups reports by reported user so admins moderate per player instead of per raw row.
     const groupedReports = useMemo(() => {
         const groups = {};
 
@@ -378,3 +393,4 @@ const AdminReports = () => {
 };
 
 export default AdminReports;
+

@@ -1,5 +1,12 @@
+﻿// File Overview: ForgotPassword.js
+// What this file is: Password reset flow using Firebase Auth.
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, TextInput, Alert, Animated, Image, Dimensions, TouchableOpacity, Platform } from 'react-native';
+import { StyleSheet, Text, View, TextInput, Alert, Animated, Image, Dimensions, TouchableOpacity, Platform, ScrollView } from 'react-native';
 import CustomButton from './CustomButton';
 import { authentication } from './Config';
 import soundManager from './SoundManager';
@@ -9,15 +16,11 @@ import {
   verifyPasswordResetCode 
 } from 'firebase/auth';
 import { useBackground } from './BackgroundContext';
+import { responsiveScale } from './utils';
 
 const { width, height } = Dimensions.get('window');
 
-// Screen scaling constants (based on 1929x2000 as normal size)
-const NORMAL_WIDTH = 1929;
-const NORMAL_HEIGHT = 2000;
-const SCALE_X = width / NORMAL_WIDTH;
-const SCALE_Y = height / NORMAL_HEIGHT;
-const SCALE = Math.min(SCALE_X, SCALE_Y) * 1.5; // Use the smaller scale to maintain proportions, increased by 1.5x
+const SCALE = responsiveScale(width, height, 1, 0.85, 1.1);
 
 const ForgotPassword = ({ navigation, route }) => {
   const { currentIndex } = useBackground();
@@ -254,10 +257,11 @@ const ForgotPassword = ({ navigation, route }) => {
       resizeMode: 'cover',
     },
     contentContainer: {
-      flex: 1,
+      flexGrow: 1,
       alignItems: 'center',
       justifyContent: 'center',
       padding: 20 * SCALE,
+      paddingVertical: 72 * SCALE,
       zIndex: 1,
     },
     title: {
@@ -270,12 +274,15 @@ const ForgotPassword = ({ navigation, route }) => {
       textShadowRadius: 4,
     },
     input: {
-      width: '20%',
+      width: '86%',
+      maxWidth: 430 * SCALE,
+      minWidth: 270 * SCALE,
       borderWidth: 1,
       borderColor: '#ced4da',
-      borderRadius: 25 * SCALE,
-      marginBottom: 15 * SCALE,
-      padding: 15 * SCALE,
+      borderRadius: 14 * SCALE,
+      marginBottom: 12 * SCALE,
+      paddingVertical: 12 * SCALE,
+      paddingHorizontal: 16 * SCALE,
       backgroundColor: '#fff',
       fontSize: 16 * SCALE,
       shadowColor: '#000',
@@ -290,6 +297,8 @@ const ForgotPassword = ({ navigation, route }) => {
       fontSize: 14 * SCALE,
       textAlign: 'center',
       paddingHorizontal: 20 * SCALE,
+      width: '90%',
+      maxWidth: 560 * SCALE,
     },
     secondaryButton: {
       marginTop: 10 * SCALE,
@@ -300,7 +309,8 @@ const ForgotPassword = ({ navigation, route }) => {
       fontSize: 14 * SCALE,
       marginBottom: 20 * SCALE,
       textAlign: 'left',
-      width: '20%',
+      width: '90%',
+      maxWidth: 500 * SCALE,
       lineHeight: 20 * SCALE,
       backgroundColor: 'rgba(255, 255, 255, 0.8)',
       padding: 10 * SCALE,
@@ -325,18 +335,18 @@ const ForgotPassword = ({ navigation, route }) => {
     },
     muteButton: {
       position: 'absolute',
-      top: 40 * SCALE,
+      top: 24 * SCALE,
       right: 20 * SCALE,
-      width: 50 * SCALE,
-      height: 50 * SCALE,
+      width: 44 * SCALE,
+      height: 44 * SCALE,
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      borderRadius: 25 * SCALE,
+      borderRadius: 22 * SCALE,
       justifyContent: 'center',
       alignItems: 'center',
       zIndex: 1000,
     },
     muteButtonText: {
-      fontSize: 24 * SCALE,
+      fontSize: 22 * SCALE,
       color: 'white',
     },
   }), [SCALE]);
@@ -356,11 +366,14 @@ const ForgotPassword = ({ navigation, route }) => {
         onPress={toggleMute}
       >
         <Text style={dynamicStyles.muteButtonText}>
-          {isMuted ? '🔇' : '🔊'}
+          {isMuted ? '\uD83D\uDD07' : '\uD83D\uDD0A'}
         </Text>
       </TouchableOpacity>
       
-      <View style={dynamicStyles.contentContainer}>
+      <ScrollView
+        contentContainerStyle={dynamicStyles.contentContainer}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={dynamicStyles.title}>Reset Password</Text>
         
         {isResetMode ? (
@@ -391,11 +404,11 @@ const ForgotPassword = ({ navigation, route }) => {
 
         <Text style={dynamicStyles.requirementsText}>
           Your new password must contain:{'\n'}
-          • 6-12 characters{'\n'}
-          • At least one uppercase letter (A-Z){'\n'}
-          • At least one lowercase letter (a-z){'\n'}
-          • At least one number (0-9){'\n'}
-          • At least one special character (!@#$%^&*()?)
+          {'\u2022'} 6-12 characters{'\n'}
+          {'\u2022'} At least one uppercase letter (A-Z){'\n'}
+          {'\u2022'} At least one lowercase letter (a-z){'\n'}
+          {'\u2022'} At least one number (0-9){'\n'}
+          {'\u2022'} At least one special character (!@#$%^&*()?)
         </Text>
 
         <CustomButton 
@@ -422,7 +435,7 @@ const ForgotPassword = ({ navigation, route }) => {
             </Text>
           </Animated.View>
         )}
-      </View>
+      </ScrollView>
     </View>
   );
 };

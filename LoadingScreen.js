@@ -1,15 +1,17 @@
+﻿// File Overview: LoadingScreen.js
+// What this file is: Temporary loading screen shown while data/assets are preparing.
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Text, Dimensions } from 'react-native';
 import RunningAnimation from './RunningAnimation';
+import { responsiveScale } from './utils';
 
 const { width, height } = Dimensions.get('window');
-
-// Screen scaling constants (based on 1929x2000 as normal size)
-const NORMAL_WIDTH = 1929;
-const NORMAL_HEIGHT = 2000;
-const SCALE_X = width / NORMAL_WIDTH;
-const SCALE_Y = height / NORMAL_HEIGHT;
-const SCALE = Math.min(SCALE_X, SCALE_Y); // Use the smaller scale to maintain proportions
+const SCALE = responsiveScale(width, height, 1, 0.78, 1.05);
 
 const LoadingScreen = () => {
   const [dots, setDots] = useState('.');

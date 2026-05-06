@@ -1,19 +1,23 @@
+﻿// File Overview: AdminPlayerList.js
+// What this file is: Admin panel for viewing players and applying moderation actions.
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Dimensions, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { firestore } from './Config';
-import { encodeEmail } from './utils';
+import { encodeEmail, responsiveScale } from './utils';
 import soundManager from './SoundManager';
 
 const { width, height } = Dimensions.get('window');
-const NORMAL_WIDTH = 1929;
-const NORMAL_HEIGHT = 2000;
-const SCALE_X = width / NORMAL_WIDTH;
-const SCALE_Y = height / NORMAL_HEIGHT;
-const SCALE = Math.min(SCALE_X, SCALE_Y);
+const SCALE = responsiveScale(width, height, 1, 0.78, 1.05);
 
-
+// These are the quick-ban buttons shown in each player card.
+// Example: pressing "Ban 1d" writes `bannedUntil = now + 24h`.
 const BAN_OPTIONS = [
   { label: '1h', ms: 60 * 60 * 1000 },
   { label: '1d', ms: 24 * 60 * 60 * 1000 },
@@ -22,10 +26,15 @@ const BAN_OPTIONS = [
 
 const AdminPlayerList = () => {
   const navigation = useNavigation();
+  // `players`: raw user documents fetched from Firestore.
+  // `searchTerm`: text typed into the search box.
+  // `filteredPlayers` (below): derived list that matches the search.
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Reads all users from Firestore and stores them in local state.
+  // Output: updates `players` and `loading`.
   const fetchPlayers = useCallback(async () => {
     setLoading(true);
     try {
@@ -34,7 +43,7 @@ const AdminPlayerList = () => {
         id: d.id,
         ...(d.data() || {}),
       }));
-      // Sort by name for predictable order
+      // Keep the list alphabetic so admins can find users faster.
       data.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       setPlayers(data);
     } catch (err) {
@@ -45,9 +54,12 @@ const AdminPlayerList = () => {
   }, []);
 
   useEffect(() => {
+    // Initial list load on screen mount.
     fetchPlayers();
   }, [fetchPlayers]);
 
+  // Search is done locally to avoid a Firestore request on every keystroke.
+  // A player is shown when either name or email contains the typed text.
   const filteredPlayers = useMemo(() => {
     const term = (searchTerm || '').toLowerCase().trim();
     if (!term) return players;
@@ -58,6 +70,8 @@ const AdminPlayerList = () => {
     });
   }, [players, searchTerm]);
 
+  // Converts "last login" from different possible schema fields to readable text.
+  // Some old users have `lastLogin`, newer ones may have `lastSeen`, etc.
   const formatLastLogin = (player) => {
     const ts =
       player.lastLogin ||
@@ -73,6 +87,10 @@ const AdminPlayerList = () => {
     return `Last login: ${new Date(ms).toLocaleString()}`;
   };
 
+  // Ban flow:
+  // 1) choose duration from BAN_OPTIONS
+  // 2) write `bannedUntil` timestamp into the user document
+  // 3) refresh the list so UI reflects the new status
   const banPlayer = useCallback(async (player, ms) => {
     const docId = encodeEmail(player.email) || player.id;
     const until = Date.now() + ms;
@@ -85,6 +103,8 @@ const AdminPlayerList = () => {
     }
   }, [fetchPlayers]);
 
+  // Deletes the user document from `Users` collection.
+  // Important: this does NOT remove the Firebase Auth account itself.
   const deletePlayer = useCallback(async (player) => {
     const docId = encodeEmail(player.email) || player.id;
     if (!docId) {
@@ -100,6 +120,7 @@ const AdminPlayerList = () => {
     }
   }, [fetchPlayers]);
 
+  // Builds one player row card: identity, stats, achievements, and action buttons.
   const renderPlayer = ({ item }) => {
     const achievements = item.achievements || {};
     const achievementList = Object.keys(achievements).filter((k) => achievements[k]);
@@ -158,7 +179,7 @@ const AdminPlayerList = () => {
         >
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Admin · Players</Text>
+        <Text style={styles.title}>Admin {'\u00B7'} Players</Text>
         <TouchableOpacity style={styles.refreshBtn} onPress={() => { soundManager.playClick(); navigation.navigate('AdminReports'); }}>
           <Text style={styles.refreshText}>View Reports</Text>
         </TouchableOpacity>
@@ -359,3 +380,4 @@ const styles = StyleSheet.create({
 });
 
 export default AdminPlayerList;
+

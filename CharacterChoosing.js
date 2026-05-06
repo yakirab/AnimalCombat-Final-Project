@@ -1,21 +1,23 @@
+﻿// File Overview: CharacterChoosing.js
+// What this file is: Character select screen, room matching, and match start payload creation.
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, Dimensions, ScrollView } from 'react-native';
 import { useBackground } from './BackgroundContext';
 import { authentication, database, firestore } from './Config';
 import soundManager from './SoundManager';
 import { useNavigation } from '@react-navigation/native';
 import { ref, push, set, onValue, off, get, update, child, serverTimestamp, remove, onDisconnect } from "firebase/database";
 import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
-import { encodeEmail } from './utils';
+import { encodeEmail, responsiveScale } from './utils';
 
 const { width, height } = Dimensions.get('window');
 
-// Screen scaling constants (based on 1929x2000 as normal size)
-const NORMAL_WIDTH = 1929;
-const NORMAL_HEIGHT = 2000;
-const SCALE_X = width / NORMAL_WIDTH;
-const SCALE_Y = height / NORMAL_HEIGHT;
-const SCALE = Math.min(SCALE_X, SCALE_Y) * 1.8; // Use the smaller scale to maintain proportions, increased by 1.8x
+const SCALE = responsiveScale(width, height, 1, 0.72, 1.08);
 
 // Memoize static assets to prevent recreation
 import BACKGROUND_IMAGES from './backgroundImages';
@@ -598,7 +600,7 @@ const CharacterChoosing = () => {
         <Text style={styles.backButtonText}>{'< Back'}</Text>
       </TouchableOpacity>
       <Image source={BACKGROUND_IMAGES[currentIndex]} style={styles.backgroundImage} />
-      <View style={styles.contentContainer}>
+      <ScrollView contentContainerStyle={styles.contentContainer}>
         <Text style={styles.title}>Choose Your Character</Text>
 
         <View style={styles.charactersContainer}>
@@ -711,9 +713,9 @@ const CharacterChoosing = () => {
                       </TouchableOpacity>
                       <Text style={styles.titleHintText}>
                         {t === 'Obvious Liar' ? 'Have age >100 or <1.5 years' :
-                          t === 'Did the Impossible' ? 'Win vs someone ≥200 years older' :
+                          t === 'Did the Impossible' ? 'Win vs someone >=200 years older' :
                             t === 'Spammer' ? 'Win using only 1 move type' :
-                              t === 'Winner' ? 'Win rate ≥ 60%' :
+                              t === 'Winner' ? 'Win rate >= 60%' :
                                 t === 'Master' ? 'Unlock all achievements' : ''}
                       </Text>
                     </View>
@@ -756,7 +758,7 @@ const CharacterChoosing = () => {
             </View>
           </View>
         )}
-      </View>
+      </ScrollView>
     </View>
   );
 };
@@ -787,10 +789,12 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   contentContainer: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20 * SCALE,
+    paddingTop: 90 * SCALE,
+    paddingBottom: 32 * SCALE,
   },
   title: {
     fontSize: 32 * SCALE,
@@ -833,8 +837,11 @@ const styles = StyleSheet.create({
     padding: 15 * SCALE,
     borderRadius: 10 * SCALE,
     marginVertical: 10 * SCALE,
-    width: '80%',
+    width: '90%',
+    maxWidth: 520 * SCALE,
+    minHeight: 52 * SCALE,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   buttonText: {
     color: 'white',
@@ -927,3 +934,4 @@ const styles = StyleSheet.create({
 });
 
 export default CharacterChoosing; 
+

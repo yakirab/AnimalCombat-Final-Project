@@ -1,3 +1,10 @@
+﻿// File Overview: Game.js
+// What this file is: Main combat engine: movement, attacks, collisions, timers, and result logic.
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
 import { StyleSheet, Text, View, Image, PanResponder, Dimensions, TouchableOpacity, Alert } from 'react-native';
@@ -1027,7 +1034,7 @@ const Game = () => {
           if (remaining.length > 0) {
             const rand = remaining[Math.floor(Math.random() * remaining.length)];
             unlocked.push(rand);
-            newUnlocks.push(`🎮 Character Unlocked: ${rand}!`);
+            newUnlocks.push(`\uD83C\uDFAE Character Unlocked: ${rand}!`);
           }
         }
         // Unlock after win
@@ -1036,7 +1043,7 @@ const Game = () => {
           if (remaining.length > 0) {
             const rand = remaining[Math.floor(Math.random() * remaining.length)];
             unlocked.push(rand);
-            newUnlocks.push(`🏆 Victory Reward - Character Unlocked: ${rand}!`);
+            newUnlocks.push(`\uD83C\uDFC6 Victory Reward - Character Unlocked: ${rand}!`);
           }
         }
 
@@ -1127,14 +1134,14 @@ const Game = () => {
           if (newUnlocks.length > 0) messages.push(...newUnlocks);
           if (newTitles.length > 0) {
             const titleMessage = newTitles.length === 1
-              ? `🏆 Achievement Unlocked: "${newTitles[0]}"`
-              : `🏆 Achievements Unlocked: ${newTitles.map(t => `"${t}"`).join(', ')}`;
+              ? `\uD83C\uDFC6 Achievement Unlocked: "${newTitles[0]}"`
+              : `\uD83C\uDFC6 Achievements Unlocked: ${newTitles.map(t => `"${t}"`).join(', ')}`;
             messages.push(titleMessage);
           }
           if (titlesToRemove.length > 0) {
             const removedMessage = titlesToRemove.length === 1
-              ? `❌ Title Lost: "${titlesToRemove[0]}" - Requirements no longer met`
-              : `❌ Titles Lost: ${titlesToRemove.map(t => `"${t}"`).join(', ')} - Requirements no longer met`;
+              ? `\u274C Title Lost: "${titlesToRemove[0]}" - Requirements no longer met`
+              : `\u274C Titles Lost: ${titlesToRemove.map(t => `"${t}"`).join(', ')} - Requirements no longer met`;
             messages.push(removedMessage);
           }
           setTransientBanners(messages);
@@ -1182,7 +1189,7 @@ const Game = () => {
     const oppDisconnectRef = gameRoomRef.current.child(`${oppPlayerKey}/disconnected`);
     oppDisconnectRef.on('value', (snap) => {
       if (snap.val() === true && gameStatus !== 'ended') {
-        // Opponent disconnected — auto-win
+        // Opponent disconnected - auto-win
         setOpponentState(prev => ({
           ...prev,
           hp: 0,
@@ -2518,3 +2525,4 @@ const styles = StyleSheet.create({
 });
 
 export default Game; 
+

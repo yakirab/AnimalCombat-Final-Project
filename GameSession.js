@@ -1,3 +1,10 @@
+﻿// File Overview: GameSession.js
+// What this file is: Session/lobby orchestration between matchmaking and gameplay.
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 import React, { useCallback, useMemo, useEffect, useState } from 'react';
 import { StyleSheet, View, Image, TouchableOpacity, Text, Dimensions, Alert, Platform } from 'react-native';
 import { useBackground } from './BackgroundContext';
@@ -6,16 +13,11 @@ import { authentication, firestore } from './Config';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import soundManager from './SoundManager';
 import { signOut } from 'firebase/auth';
-import { encodeEmail } from './utils';
+import { encodeEmail, responsiveScale } from './utils';
 
 const { width, height } = Dimensions.get('window');
 
-// Screen scaling constants (based on 1929x2000 as normal size)
-const NORMAL_WIDTH = 1929;
-const NORMAL_HEIGHT = 2000;
-const SCALE_X = width / NORMAL_WIDTH;
-const SCALE_Y = height / NORMAL_HEIGHT;
-const SCALE = Math.min(SCALE_X, SCALE_Y) * 1.5; // Use the smaller scale to maintain proportions, increased by 1.5x
+const SCALE = responsiveScale(width, height, 1, 0.78, 1.08);
 const ADMIN_EMAILS = ['yakir.abramovich@gmail.com'];
 
 
@@ -196,18 +198,21 @@ const GameSession = () => {
     },
     buttonContainer: {
       position: 'absolute',
-      bottom: 100 * SCALE,
-      left: 200 * SCALE,
-      right: 200 * SCALE,
+      left: 24 * SCALE,
+      right: 24 * SCALE,
+      bottom: 32 * SCALE,
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: 20 * SCALE,
+      gap: 12 * SCALE,
       justifyContent: 'center',
+      alignItems: 'center',
     },
     button: {
       backgroundColor: '#800000',
-      width: 250 * SCALE,
-      height: 100 * SCALE,
+      width: 210 * SCALE,
+      minHeight: 64 * SCALE,
+      paddingHorizontal: 14 * SCALE,
+      paddingVertical: 10 * SCALE,
       justifyContent: 'center',
       alignItems: 'center',
       borderRadius: 0,
@@ -219,8 +224,10 @@ const GameSession = () => {
     },
     logoutButton: {
       backgroundColor: '#263238',
-      width: 250 * SCALE,
-      height: 100 * SCALE,
+      width: 210 * SCALE,
+      minHeight: 64 * SCALE,
+      paddingHorizontal: 14 * SCALE,
+      paddingVertical: 10 * SCALE,
       justifyContent: 'center',
       alignItems: 'center',
       borderRadius: 0,
@@ -232,7 +239,7 @@ const GameSession = () => {
     },
     buttonText: {
       color: 'black',
-      fontSize: 48 * SCALE,
+      fontSize: 28 * SCALE,
       fontWeight: '900',
       textAlign: 'center',
       textShadowColor: 'rgba(0, 0, 0, 0.75)',
@@ -335,21 +342,21 @@ const GameSession = () => {
           onPress={handlePlay}
           activeOpacity={0.8}
         >
-          <Text style={dynamicStyles.buttonText}>Play</Text>
+          <Text style={dynamicStyles.buttonText} numberOfLines={2} adjustsFontSizeToFit>Play</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={dynamicStyles.button}
           onPress={handleSettings}
           activeOpacity={0.8}
         >
-          <Text style={dynamicStyles.buttonText}>Settings</Text>
+          <Text style={dynamicStyles.buttonText} numberOfLines={2} adjustsFontSizeToFit>Settings</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={dynamicStyles.button}
           onPress={handleLeaderboard}
           activeOpacity={0.8}
         >
-          <Text style={dynamicStyles.buttonText}>Leaderboard</Text>
+          <Text style={dynamicStyles.buttonText} numberOfLines={2} adjustsFontSizeToFit>Leaderboard</Text>
         </TouchableOpacity>
         {isAdmin && (
           <TouchableOpacity
@@ -357,7 +364,7 @@ const GameSession = () => {
             onPress={handleAdminPanel}
             activeOpacity={0.8}
           >
-            <Text style={dynamicStyles.buttonText}>Admin</Text>
+            <Text style={dynamicStyles.buttonText} numberOfLines={2} adjustsFontSizeToFit>Admin</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity
@@ -365,14 +372,14 @@ const GameSession = () => {
           onPress={handleReportPlayer}
           activeOpacity={0.8}
         >
-          <Text style={dynamicStyles.buttonText}>{isAdmin ? 'Reports' : 'Report Player'}</Text>
+          <Text style={dynamicStyles.buttonText} numberOfLines={2} adjustsFontSizeToFit>{isAdmin ? 'Reports' : 'Report Player'}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={dynamicStyles.logoutButton}
           onPress={handleLogout}
           activeOpacity={0.8}
         >
-          <Text style={dynamicStyles.buttonText}>Logout</Text>
+          <Text style={dynamicStyles.buttonText} numberOfLines={2} adjustsFontSizeToFit>Logout</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -380,3 +387,4 @@ const GameSession = () => {
 };
 
 export default GameSession; 
+

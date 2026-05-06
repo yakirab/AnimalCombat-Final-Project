@@ -1,22 +1,27 @@
+﻿// File Overview: Settings.js
+// What this file is: Player settings screen for controls and audio preferences.
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity, TextInput, Image, Platform } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, TextInput, Image, Platform, ScrollView } from 'react-native';
 import { useBackground } from './BackgroundContext';
 import { authentication, firestore } from './Config';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import soundManager from './SoundManager';
-import { encodeEmail } from './utils';
+import { encodeEmail, responsiveScale } from './utils';
 import BACKGROUND_IMAGES from './backgroundImages';
 
 const { width, height } = Dimensions.get('window');
-const NORMAL_WIDTH = 1929;
-const NORMAL_HEIGHT = 2000;
-const SCALE_X = width / NORMAL_WIDTH;
-const SCALE_Y = height / NORMAL_HEIGHT;
-const SCALE = Math.min(SCALE_X, SCALE_Y) * 2.5; // Increased by 2.5x for much bigger settings
+const SCALE = responsiveScale(width, height, 1, 0.82, 1.08);
 
 const Settings = ({ navigation }) => {
   const { currentIndex } = useBackground();
+  // Keyboard bindings used by gameplay input handlers.
   const [controls, setControls] = useState({ left: 'a', right: 'd', block: 'f', light: 'e', heavy: 'q', special: 'r' });
+  // Audio levels are normalized floats in [0, 1].
   const [sfxVolume, setSfxVolume] = useState(1);
   const [bgMusicVolume, setBgMusicVolume] = useState(1);
   const sfxSliderWidthRef = useRef(1);
@@ -26,11 +31,11 @@ const Settings = ({ navigation }) => {
 
   const images = BACKGROUND_IMAGES;
 
-
-
+  // Restricts each control binding to a single lowercase character.
   const normalizeKey = useCallback((k) => (k || '').toString().trim().toLowerCase().slice(0, 1), []);
 
   useEffect(() => {
+    // Loads persisted settings from Firestore and applies them to local state and audio engine.
     const load = async () => {
       try {
         const me = authentication.currentUser;
@@ -49,7 +54,7 @@ const Settings = ({ navigation }) => {
             setBgMusicVolume(loadedBgVolume);
             soundManager.setBGMusicVolume(loadedBgVolume);
           }
-          // Legacy support for old volume field
+          // Backward compatibility for old schema that stored one shared `volume` field.
           if (typeof data?.volume === 'number' && !data?.sfxVolume && !data?.bgMusicVolume) {
             const loadedVolume = Math.max(0, Math.min(1, data.volume));
             setSfxVolume(loadedVolume);
@@ -67,7 +72,7 @@ const Settings = ({ navigation }) => {
     load();
   }, []);
 
-  // Load available output devices (web only)
+  // Web-only: list output devices (headphones/speakers/etc.) for manual routing.
   useEffect(() => {
     const fetchDevices = async () => {
       try {
@@ -80,6 +85,7 @@ const Settings = ({ navigation }) => {
     fetchDevices();
   }, []);
 
+  // Saves controls + audio preferences and immediately applies them.
   const save = useCallback(async () => {
     try {
       const me = authentication.currentUser;
@@ -93,7 +99,7 @@ const Settings = ({ navigation }) => {
       };
       await setDoc(ref, payload, { merge: true });
 
-      // Update sound manager volumes
+      // Keep runtime audio state in sync with saved values.
       soundManager.setSFXVolume(sfxVolume);
       soundManager.setBGMusicVolume(bgMusicVolume);
       soundManager.setOutputDevice(selectedDeviceId);
@@ -105,24 +111,26 @@ const Settings = ({ navigation }) => {
   const styles = useMemo(() => StyleSheet.create({
     container: { flex: 1 },
     backgroundImage: { position: 'absolute', width: '100%', height: '100%', resizeMode: 'cover' },
-    card: { position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -width * 0.4 }, { translateY: -height * 0.3 }], width: width * 0.8, backgroundColor: 'transparent', borderRadius: 16 * SCALE, padding: 24 * SCALE },
-    title: { fontSize: 36 * SCALE, fontWeight: '900', textAlign: 'center', marginBottom: 20 * SCALE, color: '#2c3e50' },
-    row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 * SCALE },
-    label: { fontSize: 20 * SCALE, fontWeight: '700', color: '#2c3e50', width: 220 * SCALE },
-    input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8 * SCALE, paddingHorizontal: 12 * SCALE, paddingVertical: 8 * SCALE, width: 120 * SCALE, fontSize: 20 * SCALE, textAlign: 'center', backgroundColor: '#f9f9f9' },
-    sliderTrack: { flex: 1, height: 28 * SCALE, backgroundColor: '#ecf0f1', borderRadius: 14 * SCALE, overflow: 'hidden', marginHorizontal: 12 * SCALE },
+    scrollContent: { flexGrow: 1, justifyContent: 'center', padding: 24 * SCALE },
+    card: { width: '100%', maxWidth: 860 * SCALE, alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.72)', borderRadius: 12 * SCALE, padding: 22 * SCALE },
+    title: { fontSize: 30 * SCALE, fontWeight: '900', textAlign: 'center', marginBottom: 18 * SCALE, color: '#2c3e50' },
+    row: { flexDirection: width < 700 ? 'column' : 'row', alignItems: width < 700 ? 'stretch' : 'center', justifyContent: 'space-between', marginBottom: 10 * SCALE, gap: 8 * SCALE },
+    label: { fontSize: 17 * SCALE, fontWeight: '700', color: '#2c3e50', width: width < 700 ? '100%' : 190 * SCALE },
+    input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8 * SCALE, paddingHorizontal: 12 * SCALE, paddingVertical: 8 * SCALE, width: width < 700 ? '100%' : 100 * SCALE, fontSize: 17 * SCALE, textAlign: 'center', backgroundColor: '#f9f9f9' },
+    sliderTrack: { flex: 1, minWidth: 180 * SCALE, height: 24 * SCALE, backgroundColor: '#ecf0f1', borderRadius: 12 * SCALE, overflow: 'hidden', marginHorizontal: width < 700 ? 0 : 10 * SCALE },
     sliderFill: { height: '100%', backgroundColor: '#27ae60', opacity: 1 },
-    sliderThumb: { position: 'absolute', top: 0, bottom: 0, width: 28 * SCALE, borderRadius: 14 * SCALE, backgroundColor: '#2ecc71' },
-    volumeValue: { fontSize: 18 * SCALE, fontWeight: '700', width: 80 * SCALE, textAlign: 'right', color: '#2c3e50' },
+    sliderThumb: { position: 'absolute', top: 0, bottom: 0, width: 24 * SCALE, borderRadius: 12 * SCALE, backgroundColor: '#2ecc71' },
+    volumeValue: { fontSize: 16 * SCALE, fontWeight: '700', width: width < 700 ? '100%' : 70 * SCALE, textAlign: width < 700 ? 'left' : 'right', color: '#2c3e50' },
     actionsRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 * SCALE },
-    actionBtn: { paddingVertical: 10 * SCALE, paddingHorizontal: 20 * SCALE, borderRadius: 10 * SCALE, marginLeft: 12 * SCALE },
-    actionBtnText: { fontSize: 18 * SCALE, fontWeight: '700', color: '#2c3e50' },
+    actionBtn: { minWidth: 100 * SCALE, alignItems: 'center', paddingVertical: 10 * SCALE, paddingHorizontal: 18 * SCALE, borderRadius: 10 * SCALE, marginLeft: 10 * SCALE },
+    actionBtnText: { fontSize: 16 * SCALE, fontWeight: '700', color: '#2c3e50' },
     select: { flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8 * SCALE, paddingHorizontal: 12 * SCALE, paddingVertical: 8 * SCALE, backgroundColor: '#f9f9f9' },
   }), []);
 
   return (
     <View style={styles.container}>
       <Image source={images[currentIndex % images.length]} style={styles.backgroundImage} />
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
       <View style={styles.card}>
         <Text style={styles.title}>Settings</Text>
 
@@ -175,7 +183,7 @@ const Settings = ({ navigation }) => {
             }}
           >
             <View style={[styles.sliderFill, { width: `${Math.round(Math.max(0, Math.min(1, Number(sfxVolume) || 0)) * 100)}%` }]} />
-            <View style={[styles.sliderThumb, { left: Math.max(0, Math.min((sfxSliderWidthRef.current || 0) - (28 * SCALE), (Math.max(0, Math.min(1, Number(sfxVolume) || 0)) * (sfxSliderWidthRef.current || 0)) - (14 * SCALE))) }]} />
+            <View style={[styles.sliderThumb, { left: Math.max(0, Math.min((sfxSliderWidthRef.current || 0) - (24 * SCALE), (Math.max(0, Math.min(1, Number(sfxVolume) || 0)) * (sfxSliderWidthRef.current || 0)) - (12 * SCALE))) }]} />
           </View>
           <Text style={styles.volumeValue}>{Math.round(Math.max(0, Math.min(1, Number(sfxVolume) || 0)) * 100)}%</Text>
         </View>
@@ -203,7 +211,7 @@ const Settings = ({ navigation }) => {
             }}
           >
             <View style={[styles.sliderFill, { width: `${Math.round(Math.max(0, Math.min(1, Number(bgMusicVolume) || 0)) * 100)}%` }]} />
-            <View style={[styles.sliderThumb, { left: Math.max(0, Math.min((bgMusicSliderWidthRef.current || 0) - (28 * SCALE), (Math.max(0, Math.min(1, Number(bgMusicVolume) || 0)) * (bgMusicSliderWidthRef.current || 0)) - (14 * SCALE))) }]} />
+            <View style={[styles.sliderThumb, { left: Math.max(0, Math.min((bgMusicSliderWidthRef.current || 0) - (24 * SCALE), (Math.max(0, Math.min(1, Number(bgMusicVolume) || 0)) * (bgMusicSliderWidthRef.current || 0)) - (12 * SCALE))) }]} />
           </View>
           <Text style={styles.volumeValue}>{Math.round(Math.max(0, Math.min(1, Number(bgMusicVolume) || 0)) * 100)}%</Text>
         </View>
@@ -238,10 +246,12 @@ const Settings = ({ navigation }) => {
           </TouchableOpacity>
         </View>
       </View>
+      </ScrollView>
     </View>
   );
 };
 
 export default Settings;
+
 
 

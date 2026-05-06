@@ -1,3 +1,10 @@
+﻿// File Overview: ReportPlayer.js
+// What this file is: User reporting flow for submitting moderation reports.
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Alert, Dimensions, Image, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -7,19 +14,17 @@ import { firestore, authentication } from './Config';
 import { useBackground } from './BackgroundContext';
 import soundManager from './SoundManager';
 import BACKGROUND_IMAGES from './backgroundImages';
-import { encodeEmail } from './utils';
+import { encodeEmail, responsiveScale } from './utils';
 
 const { width, height } = Dimensions.get('window');
-const NORMAL_WIDTH = 1929;
-const NORMAL_HEIGHT = 2000;
-const SCALE_X = width / NORMAL_WIDTH;
-const SCALE_Y = height / NORMAL_HEIGHT;
-const SCALE = Math.min(SCALE_X, SCALE_Y) * 1.5;
+const SCALE = responsiveScale(width, height, 1, 0.78, 1.05);
+// Hard-coded admin fallback used before/alongside role-based lookup.
 const ADMIN_EMAILS = ['yakir.abramovich@gmail.com'];
 
 const ReportPlayer = () => {
     const { currentIndex } = useBackground();
     const navigation = useNavigation();
+    // `allPlayers` is the full loaded roster, `filteredPlayers` tracks search results.
     const [searchQuery, setSearchQuery] = useState('');
     const [allPlayers, setAllPlayers] = useState([]);
     const [filteredPlayers, setFilteredPlayers] = useState([]);
@@ -28,12 +33,13 @@ const ReportPlayer = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Safe fallback to avoid crashes if global background config is empty.
     const safeBackgrounds = useMemo(
         () => (Array.isArray(BACKGROUND_IMAGES) && BACKGROUND_IMAGES.length > 0 ? BACKGROUND_IMAGES : [require('./assets/MenuBackGround/background/bg1.png')]),
         []
     );
 
-    // Load all players after auth is ready
+    // Waits for auth state, then loads candidates that can be reported.
     useEffect(() => {
         let isMounted = true;
 
@@ -48,6 +54,7 @@ const ReportPlayer = () => {
                 const adminByUserFlag = !!(userSnap?.exists?.() && (userSnap.data()?.isAdmin || userSnap.data()?.role === 'admin'));
                 const adminDetected = isAdminEmail || adminByUserFlag;
 
+                // Admin users are redirected to moderation dashboard, not reporting flow.
                 if (adminDetected) {
                     navigation.replace('AdminReports');
                     return;
@@ -62,7 +69,7 @@ const ReportPlayer = () => {
                     const email = emailFromDoc || fallbackEmail;
                     const isSelfByUid = !!currentUid && data.userId === currentUid;
                     const isSelfByEmail = !!currentEmail && email === currentEmail;
-                    // Don't show current user in the list
+                    // Self-reporting is blocked by filtering out current player identity.
                     if (!isSelfByUid && !isSelfByEmail) {
                         players.push({ id: userDoc.id, name: data.name || 'Unknown', email });
                     }
@@ -100,7 +107,7 @@ const ReportPlayer = () => {
         };
     }, [navigation]);
 
-    // Filter players based on search query
+    // Lightweight in-memory search by name/email.
     const applySearchFilter = useCallback(() => {
         if (!searchQuery.trim()) {
             setFilteredPlayers(allPlayers);
@@ -121,6 +128,7 @@ const ReportPlayer = () => {
         setSelectedPlayer(player);
     }, []);
 
+    // Persists a report document with snapshot details about reporter and reported player.
     const handleSubmit = useCallback(async () => {
         if (!selectedPlayer) {
             Alert.alert('Error', 'Please select a player to report');
@@ -278,7 +286,7 @@ const ReportPlayer = () => {
                     <Text style={styles.playerName}>{item.name}</Text>
                     <Text style={styles.playerEmail}>{item.email}</Text>
                 </View>
-                {isSelected && <Text style={styles.selectedBadge}>✓ Selected</Text>}
+                {isSelected && <Text style={styles.selectedBadge}>{'\u2713'} Selected</Text>}
             </TouchableOpacity>
         );
     }, [selectedPlayer, handleSelectPlayer, styles]);
@@ -288,10 +296,10 @@ const ReportPlayer = () => {
             <Image source={safeBackgrounds[currentIndex % safeBackgrounds.length]} style={styles.backgroundImage} />
             <View style={styles.overlay}>
                 <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
-                    <Text style={styles.backBtnText}>← Back</Text>
+                    <Text style={styles.backBtnText}>{'\u2190'} Back</Text>
                 </TouchableOpacity>
 
-                <Text style={styles.title}>⚠️ Report a Player</Text>
+                <Text style={styles.title}>{'\u26A0\uFE0F'} Report a Player</Text>
 
                 <View style={styles.searchRow}>
                     <TextInput
@@ -350,3 +358,4 @@ const ReportPlayer = () => {
 };
 
 export default ReportPlayer;
+

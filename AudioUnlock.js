@@ -1,3 +1,10 @@
+﻿// File Overview: AudioUnlock.js
+// What this file is: Unlocks audio playback after a user gesture (mainly for web/mobile policies).
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import soundManager from './SoundManager';
@@ -132,3 +139,4 @@ const styles = StyleSheet.create({
 });
 
 export default AudioUnlock;
+

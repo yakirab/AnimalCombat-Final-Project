@@ -1,5 +1,12 @@
+﻿// File Overview: LoginScreen.js
+// What this file is: Sign-in screen with auth validation and error handling.
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, TextInput, Animated, TouchableOpacity, Alert, Image, Dimensions, Platform } from 'react-native';
+import { StyleSheet, Text, View, TextInput, Animated, TouchableOpacity, Alert, Image, Dimensions, Platform, ScrollView } from 'react-native';
 import CustomButton from './CustomButton'; // Import the reusable button
 import { authentication, firestore } from './Config';
 import soundManager from './SoundManager';
@@ -7,16 +14,11 @@ import { signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged 
 import { useBackground } from './BackgroundContext';
 import RunningAnimation from './RunningAnimation';
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { encodeEmail } from './utils';
+import { encodeEmail, responsiveScale } from './utils';
 
 const { width, height } = Dimensions.get('window');
 
-// Screen scaling constants (based on 1929x2000 as normal size)
-const NORMAL_WIDTH = 1929;
-const NORMAL_HEIGHT = 2000;
-const SCALE_X = width / NORMAL_WIDTH;
-const SCALE_Y = height / NORMAL_HEIGHT;
-const SCALE = Math.min(SCALE_X, SCALE_Y) * 1.5; // Use the smaller scale to maintain proportions, increased by 1.5x
+const SCALE = responsiveScale(width, height, 1, 0.85, 1.1);
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -266,10 +268,11 @@ const LoginScreen = ({ navigation }) => {
       resizeMode: 'cover',
     },
     contentContainer: {
-      flex: 1,
+      flexGrow: 1,
       alignItems: 'center',
       justifyContent: 'center',
       padding: 20 * SCALE,
+      paddingVertical: 72 * SCALE,
       zIndex: 1,
     },
     title: {
@@ -282,12 +285,15 @@ const LoginScreen = ({ navigation }) => {
       textShadowRadius: 4,
     },
     input: {
-      width: '20%',
+      width: '86%',
+      maxWidth: 420 * SCALE,
+      minWidth: 260 * SCALE,
       borderWidth: 1,
       borderColor: '#ced4da',
-      borderRadius: 25 * SCALE,
-      marginBottom: 15 * SCALE,
-      padding: 15 * SCALE,
+      borderRadius: 14 * SCALE,
+      marginBottom: 12 * SCALE,
+      paddingVertical: 12 * SCALE,
+      paddingHorizontal: 16 * SCALE,
       backgroundColor: '#fff',
       fontSize: 16 * SCALE,
       shadowColor: '#000',
@@ -301,6 +307,8 @@ const LoginScreen = ({ navigation }) => {
       marginBottom: 10 * SCALE,
       fontSize: 14 * SCALE,
       textAlign: 'center',
+      width: '86%',
+      maxWidth: 520 * SCALE,
     },
     successText: {
       color: 'green',
@@ -309,7 +317,8 @@ const LoginScreen = ({ navigation }) => {
       fontWeight: 'bold',
     },
     linkContainer: {
-      width: '20%',
+      width: '86%',
+      maxWidth: 460 * SCALE,
       marginVertical: 10 * SCALE,
       alignItems: 'center',
     },
@@ -325,18 +334,18 @@ const LoginScreen = ({ navigation }) => {
     },
     muteButton: {
       position: 'absolute',
-      top: 40 * SCALE,
+      top: 24 * SCALE,
       right: 20 * SCALE,
-      width: 50 * SCALE,
-      height: 50 * SCALE,
+      width: 44 * SCALE,
+      height: 44 * SCALE,
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      borderRadius: 25 * SCALE,
+      borderRadius: 22 * SCALE,
       justifyContent: 'center',
       alignItems: 'center',
       zIndex: 1000,
     },
     muteButtonText: {
-      fontSize: 24 * SCALE,
+      fontSize: 22 * SCALE,
       color: 'white',
     },
   }), [SCALE]);
@@ -351,11 +360,14 @@ const LoginScreen = ({ navigation }) => {
         onPress={toggleMute}
       >
         <Text style={dynamicStyles.muteButtonText}>
-          {isMuted ? '🔇' : '🔊'}
+          {isMuted ? '\uD83D\uDD07' : '\uD83D\uDD0A'}
         </Text>
       </TouchableOpacity>
 
-      <View style={dynamicStyles.contentContainer}>
+      <ScrollView
+        contentContainerStyle={dynamicStyles.contentContainer}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={dynamicStyles.title}>Login</Text>
 
         <TextInput
@@ -412,9 +424,10 @@ const LoginScreen = ({ navigation }) => {
         <Animated.View style={{ opacity: fadeAnim }}>
           <Text style={dynamicStyles.successText}>Login successful!</Text>
         </Animated.View>
-      </View>
+      </ScrollView>
     </View>
   );
 };
 
 export default LoginScreen; 
+

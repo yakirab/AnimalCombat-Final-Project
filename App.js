@@ -1,3 +1,10 @@
+﻿// File Overview: App.js
+// What this file is: Root navigator that wires all app screens together.
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -105,3 +112,4 @@ export default function App() {
     </BackgroundProvider>
   );
 }
+

@@ -1,3 +1,10 @@
+﻿// File Overview: SoundManager.js
+// What this file is: Central audio service for SFX/BG music on web and mobile.
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 import { Audio as ExpoAudio } from 'expo-av';
 import { Platform } from 'react-native';
 import { Asset } from 'expo-asset';
@@ -709,4 +716,5 @@ class SoundManager {
 const soundManager = new SoundManager();
 
 export default soundManager;
+
 

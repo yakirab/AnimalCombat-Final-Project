@@ -1,3 +1,10 @@
+﻿// File Overview: Config.js
+// What this file is: Firebase setup and exported service instances used across the app.
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
@@ -36,3 +43,4 @@ if (typeof window !== 'undefined') {
 export const database = getDatabase(app);
 export const firestore = getFirestore(app);
 export { firebase, authentication };
+

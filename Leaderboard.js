@@ -1,17 +1,22 @@
+﻿// File Overview: Leaderboard.js
+// What this file is: Leaderboard screen that loads, sorts, and filters player rankings.
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Dimensions, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { collection, getDocs } from 'firebase/firestore';
 import { firestore } from './Config';
 import soundManager from './SoundManager';
+import { responsiveScale } from './utils';
 
 const { width, height } = Dimensions.get('window');
-const NORMAL_WIDTH = 1929;
-const NORMAL_HEIGHT = 2000;
-const SCALE_X = width / NORMAL_WIDTH;
-const SCALE_Y = height / NORMAL_HEIGHT;
-const SCALE = Math.min(SCALE_X, SCALE_Y);
+const SCALE = responsiveScale(width, height, 1, 0.78, 1.05);
 
+// Supported achievement filters shown as quick chips above the leaderboard.
 const ACHIEVEMENT_KEYS = [
   { key: 'obviousLiar', label: 'Obvious Liar' },
   { key: 'didTheImpossible', label: 'Did the Impossible' },
@@ -22,10 +27,12 @@ const ACHIEVEMENT_KEYS = [
 
 const Leaderboard = () => {
   const navigation = useNavigation();
+  // `players` is the sorted base ranking; filters are applied in-memory.
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedFilters, setSelectedFilters] = useState([]);
 
+  // Pulls all users and computes score metrics needed for ranking.
   const fetchLeaderboard = useCallback(async () => {
     setLoading(true);
     try {
@@ -45,7 +52,8 @@ const Leaderboard = () => {
           ratio,
         };
       });
-      // Sort by best win/loss ratio, then wins desc
+      // Primary sort: better W/L ratio.
+      // Tie-breaker: higher total wins.
       data.sort((a, b) => {
         if (b.ratio === a.ratio) {
           return b.wins - a.wins;
@@ -61,9 +69,11 @@ const Leaderboard = () => {
   }, []);
 
   useEffect(() => {
+    // Initial load when entering the leaderboard screen.
     fetchLeaderboard();
   }, [fetchLeaderboard]);
 
+  // Optional achievement filtering: user must match all active chips.
   const filteredPlayers = useMemo(() => {
     if (!selectedFilters.length) return players;
     return players.filter((p) =>
@@ -71,12 +81,14 @@ const Leaderboard = () => {
     );
   }, [players, selectedFilters]);
 
+  // Toggles achievement chips on/off.
   const toggleFilter = useCallback((key) => {
     setSelectedFilters((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
     );
   }, []);
 
+  // Card renderer for one ranked player row.
   const renderPlayer = ({ item, index }) => {
     const achievementList = ACHIEVEMENT_KEYS.filter((a) => item.achievements?.[a.key]).map((a) => a.label);
     return (
@@ -319,3 +331,4 @@ const styles = StyleSheet.create({
 });
 
 export default Leaderboard;
+

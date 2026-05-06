@@ -1,3 +1,10 @@
+﻿// File Overview: backgroundImages.js
+// What this file is: Central array of imported background assets.
+// When this runs: Loaded when this module is imported by a screen/service.
+// Main inputs: React state/props, Firebase data, and shared modules.
+// Main outputs: UI rendering and/or side effects (navigation, reads/writes, audio).
+// Read this first: Start from the main exported component/function, then follow hooks/callbacks in order.
+
 // Shared background images array used across multiple screens
 const BACKGROUND_IMAGES = [
     require('./assets/MenuBackGround/background/bg1.png'),
@@ -42,3 +49,4 @@ const BACKGROUND_IMAGES = [
 ];
 
 export default BACKGROUND_IMAGES;
+
